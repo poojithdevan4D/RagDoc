@@ -12,9 +12,7 @@ import os, sys, json, base64, tempfile, traceback, math
 from flask import Flask, request, Response, send_from_directory
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-
 def _find_model():
-    """Auto-detect model: env var → models/ folder → sensible default."""
     if "MODEL_PATH" in os.environ:
         return os.environ["MODEL_PATH"]
     models_dir = os.path.join(BASE_DIR, "models")
@@ -22,7 +20,7 @@ def _find_model():
         for f in sorted(os.listdir(models_dir)):
             if f.endswith(".gguf"):
                 return os.path.join(models_dir, f)
-    return os.path.join(BASE_DIR, "models", "Qwen3-14B-Q4_K_M.gguf")
+    return os.path.join(BASE_DIR, "models", "mistral-7b-instruct-v0.2.Q4_K_M.gguf")
 
 MODEL_PATH = _find_model()
 

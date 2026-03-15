@@ -1,103 +1,81 @@
 # ─────────────────────────────────────────────────────────────
-#  Audit Checklist Generator — Setup Script (Windows)
-#  Run in PowerShell as: .\setup.ps1
-#  If blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+#  Offline Audit Checklist Generator — Setup (Windows)
+#  Usage: .\setup.ps1
+#  If blocked run first: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 # ─────────────────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
+function Info { Write-Host "[setup] $args" -ForegroundColor Cyan }
+function Ok   { Write-Host "[  ok ] $args" -ForegroundColor Green }
+function Fail { Write-Host "[error] $args" -ForegroundColor Red; exit 1 }
 
-function Info  { Write-Host "[setup] $args" -ForegroundColor Cyan }
-function Ok    { Write-Host "[  ok ] $args" -ForegroundColor Green }
-function Fail  { Write-Host "[error] $args" -ForegroundColor Red; exit 1 }
-
-Info "Audit Checklist Generator — Setup (Windows)"
+Write-Host ""
+Info "Offline Audit Checklist Generator — Setup (Windows)"
 Write-Host ""
 
 # ── Python check ─────────────────────────────────────────────
 $python = $null
 foreach ($cmd in @("python", "python3", "py")) {
-    try {
-        $ver = & $cmd --version 2>&1
-        if ($ver -match "Python 3") { $python = $cmd; break }
-    } catch {}
+    try { if ((& $cmd --version 2>&1) -match "Python 3") { $python = $cmd; break } } catch {}
 }
-if (-not $python) {
-    Fail "Python 3 not found. Download from https://python.org (tick 'Add to PATH')"
-}
-$version = (& $python --version 2>&1) -replace "Python ",""
-Info "Found Python $version"
+if (-not $python) { Fail "Python 3.10+ not found. Download from https://python.org (tick 'Add to PATH')" }
+Info "Python found: $(& $python --version 2>&1)"
 
 # ── Virtual environment ───────────────────────────────────────
 if (-not (Test-Path ".venv")) {
     Info "Creating virtual environment..."
     & $python -m venv .venv
     Ok "Created .venv"
-} else {
-    Ok "Virtual environment already exists"
-}
+} else { Ok "Virtual environment already exists" }
 
-$activate = ".\.venv\Scripts\Activate.ps1"
-. $activate
-
-# ── Install dependencies ──────────────────────────────────────
-Info "Installing Python dependencies..."
+. ".\.venv\Scripts\Activate.ps1"
 pip install --upgrade pip --quiet
+
+# ── Dependencies ──────────────────────────────────────────────
+Info "Installing dependencies..."
 pip install flask pdfplumber python-docx --quiet
-Ok "Core dependencies installed"
+Ok "flask, pdfplumber, python-docx installed"
 
 Info "Installing llama-cpp-python..."
 try {
     pip install llama-cpp-python --quiet
-    Ok "llama-cpp-python installed (prebuilt wheel)"
+    Ok "llama-cpp-python installed"
 } catch {
-    Info "Prebuilt wheel failed — trying source build (requires Visual C++ Build Tools)..."
+    Info "Trying source build (requires Visual C++ Build Tools)..."
     pip install llama-cpp-python --no-cache-dir
     Ok "llama-cpp-python installed from source"
 }
 
-# ── Model download ────────────────────────────────────────────
-$modelDir  = "models"
-$modelFile = "$modelDir\Qwen3-14B-Q4_K_M.gguf"
-$modelUrl  = "https://huggingface.co/feihu.hf/Qwen3-14B-GGUF/resolve/main/Qwen3-14B-Q4_K_M.gguf"
-
-if (-not (Test-Path $modelDir)) { New-Item -ItemType Directory -Path $modelDir | Out-Null }
+# ── Model ─────────────────────────────────────────────────────
+if (-not (Test-Path "models")) { New-Item -ItemType Directory -Path "models" | Out-Null }
+$modelFile = "models\mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+$modelUrl  = "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
 
 if (Test-Path $modelFile) {
-    Ok "Model already downloaded: $modelFile"
+    Ok "Model already present: $modelFile"
 } else {
     Write-Host ""
-    Write-Host "  The LLM model (~9 GB) needs to be downloaded."
-    Write-Host "  URL: $modelUrl"
+    Write-Host "  The model file (~4 GB) is not present."
     $choice = Read-Host "  Download now? [Y/n]"
-    if (-not $choice) { $choice = "Y" }
-    if ($choice -match "^[Yy]") {
-        Info "Downloading model — this may take a while..."
-        $wc = New-Object System.Net.WebClient
-        $wc.DownloadFile($modelUrl, (Resolve-Path $modelDir).Path + "\Qwen3-14B-Q4_K_M.gguf")
+    if (-not $choice -or $choice -match "^[Yy]") {
+        Info "Downloading model..."
+        (New-Object System.Net.WebClient).DownloadFile($modelUrl, (Join-Path (Get-Location) $modelFile))
         Ok "Model downloaded"
     } else {
-        Write-Host ""
-        Write-Host "  Skipped. Download manually later:"
-        Write-Host "    $modelUrl"
-        Write-Host "  Save to: $modelFile"
+        Write-Host "  Download manually and place at: $modelFile"
     }
 }
 
-# ── Static fonts ──────────────────────────────────────────────
-$staticDir = "static"
-if (-not (Test-Path $staticDir)) { New-Item -ItemType Directory -Path $staticDir | Out-Null }
-$sansFile = "$staticDir\ibmplexsans.woff2"
-$monoFile = "$staticDir\ibmplexmono.woff2"
-if (-not (Test-Path $sansFile) -or -not (Test-Path $monoFile)) {
+# ── Fonts ─────────────────────────────────────────────────────
+if (-not (Test-Path "static")) { New-Item -ItemType Directory -Path "static" | Out-Null }
+if (-not (Test-Path "static\ibmplexsans.woff2")) {
     Info "Downloading UI fonts..."
     $wc = New-Object System.Net.WebClient
     try {
-        $wc.DownloadFile("https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKjQ.woff2", (Resolve-Path $staticDir).Path + "\ibmplexsans.woff2")
-        $wc.DownloadFile("https://fonts.gstatic.com/s/ibmplexmono/v19/-F6pfjptAgt5VM-kVkqdyU8n3kwq.woff2", (Resolve-Path $staticDir).Path + "\ibmplexmono.woff2")
+        $wc.DownloadFile("https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKjQ.woff2",  (Join-Path (Get-Location) "static\ibmplexsans.woff2"))
+        $wc.DownloadFile("https://fonts.gstatic.com/s/ibmplexmono/v19/-F6pfjptAgt5VM-kVkqdyU8n3kwq.woff2", (Join-Path (Get-Location) "static\ibmplexmono.woff2"))
         Ok "Fonts downloaded"
-    } catch {
-        Write-Host "  Could not download fonts (non-critical, UI will use fallback font)"
-    }
+    } catch { Write-Host "  Could not download fonts (non-critical)" }
 }
 
 Write-Host ""
@@ -105,7 +83,7 @@ Write-Host "──────────────────────�
 Write-Host "  Setup complete!" -ForegroundColor Green
 Write-Host "────────────────────────────────────────" -ForegroundColor Green
 Write-Host ""
-Write-Host "  To start the server:"
+Write-Host "  To start:"
 Write-Host "    .\.venv\Scripts\Activate.ps1"
 Write-Host "    python server.py"
 Write-Host ""

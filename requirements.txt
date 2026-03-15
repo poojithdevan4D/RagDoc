@@ -1,4 +1,4 @@
 flask>=3.0
 pdfplumber>=0.11
 python-docx>=1.1
-llama-cpp-python>=0.3.4
+llama-cpp-python>=0.2.90

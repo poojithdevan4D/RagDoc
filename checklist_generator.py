@@ -7,7 +7,7 @@ a filtered audit sheet (depth-controlled subset).
 import os, sys, re, json, math
 
 PDF_PATH    = "AFQMS_-_final_23_8_24.pdf"
-MODEL_PATH  = "/home/arut/audit_ai/models/Qwen3-14B-Q4_K_M.gguf"
+MODEL_PATH  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "mistral-7b-instruct-v0.2.Q4_K_M.gguf")
 OUTPUT_DOCX = "Audit_Checklist.docx"
 MAX_ITEMS   = 10
 
@@ -27,7 +27,7 @@ DEPTH_PRESETS = {
 # Pattern 1: dotted clause numbers — 2.1 / 21.B1.4 / 3.2.1
 # Covers AFQMS, IMTAR
 DOTTED_RE = re.compile(
-    r'^(\d+\.\d[A-Z0-9]*(?:\.[A-Z0-9]+){0,4})\s{1,6}(\S.{8,})',
+    r'^((?:\d+|[A-Z])(?:\.[A-Z0-9]+){1,5})\s{1,6}(\S.{8,})',
     re.IGNORECASE
 )
 
@@ -48,26 +48,14 @@ LETTERED_RE = re.compile(
 CLAUSE_RE = DOTTED_RE
 
 SECTION_RE_FALLBACK = re.compile(
-    r'^(PART(?:[-–]\s*[A-Z0-9]+|\s+[IVX]+|\s*$)'
-    r'|SECTION(?:[-–:]\s*[A-Z0-9]+|\s*-\s*[A-Z0-9]+|\s+\d+|\s*$)'
-    r'|CHAPTER\s+\d+'
-    r'|SUBPART\s+[A-Z0-9]+'
-    r'|Subpart\s+[A-Z0-9]+'
-    r'|ANNEX(?:URE)?(?:\s*[-–]?\s*[A-Z0-9]+|\s*$)'
-    r'|APPENDIX(?:\s+[A-Z0-9]+)?)',
+    r'^(PART|SECTION|CHAPTER|SUBPART|Subpart|ANNEX|APPENDIX)\s*[-–]?\s*([A-Z0-9]+)\b',
     re.IGNORECASE
 )
 
 # Section headers for directive-style docs (ALLCAPS standalone lines)
 HEADER_RE = re.compile(
     r'^(INTRODUCTION|DEFINITIONS|CONCLUSION|PREFACE|'
-    r'QA\s+ACTIVITIES|SAFETY(?:\s*[&/]\s*HANDLING)?|HANDLING|'
-    r'ASSEMBLY(?:\s+PREPARATION|\s*$)|'
-    r'ANNEXURE|APPENDIX|'
-    r'PERFORMANCE\s+MONITORING|CONTROLLING\s+MECHANISM|'
-    r'UNSATISFACTORY\s+PERFORMANCE|PAYMENT\s+TERMS|'
-    r'PROCESS\s+FLOW|DELEGATION\s+OF|CERTIFICATE\s+OF)'
-    r'(?:[:\s-].*)?$',
+    r'QA\s+ACTIVITIES|SAFETY|HANDLING|ASSEMBLY|ANNEXURE|APPENDIX)',
     re.IGNORECASE
 )
 
@@ -86,12 +74,7 @@ SKIP_SECTIONS = {
     'DEFINITIONS', 'INTRODUCTION', 'PREFACE', 'CONCLUSION',
     'BACKGROUND', 'FOREWORD', 'SCOPE', 'PURPOSE', 'REFERENCES',
     'GLOSSARY', 'ABBREVIATIONS', 'ANNEXURE', 'ANNEX', 'APPENDIX',
-    'TABLEOFCONTENTS', 'TOC', 'RECORDOFAMENDMENTS', 'LISTOFEFFECTIVEPAGES',
-    'RECORDOFCHANGES', 'REVISION', 'COVERPAGE', 'CERTIFICATE',
-    'DOCUMENTAPPROVAL', 'PAYMENTTERMS', 'PROCESSFLOW',
-    'SECTION1', 'SECTION2', 'SECTION3', 'SECTION4', 'SECTION5',
-    'UNSATISFACTORYPERFORMANCE', 'PERFORMANCEMONITORING',
-    'CONTROLLINGMECHANISM', 'DELEGATION',
+    'TABLEOFCONTENTS', 'TOC',
 }
 
 def _section_is_skippable(section_name):
@@ -100,16 +83,11 @@ def _section_is_skippable(section_name):
         skip_norm = re.sub(r'[^A-Z]', '', skip.upper())
         if skip_norm and (skip_norm in normalised or normalised.startswith(skip_norm)):
             return True
-    # Long mixed-case labels are annexure/form content that became a section label
-    if len(section_name) > 30 and re.search(r'[a-z]', section_name):
-        return True
     return False
 
 SKIP_LINE = re.compile(
     r'^(Figure|Fig\.|Table\s+\d|Appendix|Annex|Note:|NOTE:|'
-    r'Page\s+\d+|Page\s+\|\s+\d+|\d+$|[ivxlIVXL]+$|[-–—]{3,}|www\.|http|'
-    r'DOC\.\s*NO\.|Intellectual\s+property|All\s+Rights\s+Reserved|'
-    r'Copyright|CORPORATE\s+QUALITY\s+ASSURANCE|Not\s+to\s+be\s+copied)',
+    r'Page\s+\d+|Page\s+\|\s+\d+|\d+$|[ivxlIVXL]+$|[-–—]{3,}|www\.|http)',
     re.IGNORECASE
 )
 
@@ -146,13 +124,12 @@ def read_pdf(path):
     return pages
 
 # ── Step 2: Detect structure ────────────────────────────
-STRUCTURE_PROMPT = """<|im_start|>system
-You are a document structure analyst. Respond only with valid JSON, no markdown, no explanation. /no_think<|im_end|>
-<|im_start|>user
-Analyze this government regulatory document sample and identify how major sections are labeled.
+STRUCTURE_PROMPT = """[INST] You are analyzing a government regulatory document.
+
+Study the sample pages below and identify how major sections are labeled.
 Give one example of a clause number from the document.
 
-Respond with ONLY a JSON object:
+Respond with ONLY a JSON object, no explanation, no markdown:
 {{
   "section_pattern": "^(Subpart\\\\s+[A-Z0-9]+)",
   "section_example": "Subpart B1",
@@ -160,9 +137,8 @@ Respond with ONLY a JSON object:
 }}
 
 SAMPLE PAGES:
-{sample}<|im_end|>
-<|im_start|>assistant
-"""
+{sample}
+[/INST]"""
 
 def detect_structure(llm, pages):
     print("\n[2/5] Detecting document structure via LLM...")
@@ -176,10 +152,9 @@ def detect_structure(llm, pages):
             break
     raw = llm(
         STRUCTURE_PROMPT.format(sample=sample),
-        max_tokens=300, temperature=0.1,
-        stop=["<|im_end|>", "<|im_start|>", "</think>"], echo=False,
+        max_tokens=200, temperature=0.1,
+        stop=["</s>", "[INST]"], echo=False,
     )["choices"][0]["text"].strip()
-    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL)
     raw = re.sub(r"```json|```", "", raw).strip()
     m = re.search(r'\{.*\}', raw, re.DOTALL)
     if m:
@@ -211,22 +186,6 @@ def clean(t):
     t = re.sub(r'(?<=[A-Za-z]) (?=[A-Za-z] )', '', t)
     return re.sub(r'\s{2,}', ' ', t).strip()
 
-# HAL/DGAQA docs repeat a header table on every page — strip it before parsing
-_PAGE_HEADER_RE = re.compile(
-    r'(DOC\.\s*NO\b|CQAG\s*\d{4}|Intellectual\s+property\s+of|'
-    r'Not\s+to\s+be\s+copied|For\s+an\s+official\s+copy|'
-    r'CORPORATE\s+QUALITY\s+ASSURANCE\s+GUIDELINES|All\s+Rights\s+Reserved|'
-    r'PAGE\s*:\s*\d|ISSUE\s*:\s*(Nil|\d)|DATE\s*:\s*\d{2}\.\d{2}\.\d{4}|'
-    r'^H\.A\.L\s*$|^CORPORATE\s+QA\s+DEPT$|^QA\s+DEPT$)',
-    re.IGNORECASE
-)
-
-def strip_page_headers(page_text):
-    return "\n".join(
-        line for line in page_text.split("\n")
-        if not _PAGE_HEADER_RE.search(line)
-    )
-
 def extract_clauses(pages, clause_re, section_re):
     """
     Multi-pattern clause extractor supporting three document styles:
@@ -252,13 +211,10 @@ def extract_clauses(pages, clause_re, section_re):
                 ref = f"{pending_section}/{pending_num}" if pending_section else pending_num
                 clauses.append({"ref": ref, "text": body})
 
-    # Track last dotted clause as parent for numbered sub-items (e.g. 11.3.1/1)
-    last_dotted_num = None
     # Track last integer-numbered parent for lettered sub-items
     last_int_num = None
 
-    for raw_page in pages:
-        page_text = strip_page_headers(raw_page)
+    for page_text in pages:
         for line in page_text.split("\n"):
             line = line.strip()
             if not line or SKIP_LINE.match(line):
@@ -270,16 +226,15 @@ def extract_clauses(pages, clause_re, section_re):
             is_section = False
             for sr in [section_re, HEADER_RE]:
                 sm = sr.match(line)
-                if sm and len(line.strip()) < 50:
+                if sm and len(line) < 70:
                     flush()
                     label = sm.group(0).strip()[:45]
                     current_section = re.sub(r'\s+', '-', label)
                     current_section = re.sub(r'[^A-Za-z0-9\-]', '-', current_section).strip('-')
-                    pending_num     = None
-                    pending_body    = []
-                    last_int_num    = None
-                    last_dotted_num = None
-                    is_section      = True
+                    pending_num  = None
+                    pending_body = []
+                    last_int_num = None
+                    is_section   = True
                     break
             if is_section:
                 continue
@@ -289,31 +244,27 @@ def extract_clauses(pages, clause_re, section_re):
             if dm:
                 clause_num = dm.group(1)
                 if re.match(r'^\d+\.0$', clause_num):
-                    flush(); pending_num = None; pending_body = []
-                    last_dotted_num = clause_num; continue
+                    flush(); pending_num = None; pending_body = []; continue
                 flush()
                 pending_num     = clause_num
                 pending_section = current_section
                 pending_body    = [dm.group(2)]
-                last_dotted_num = clause_num
-                last_int_num    = None
+                last_int_num    = None   # reset lettered context
                 continue
 
             # ── Pattern 2: integer paragraph — "1. TITLE body" ──
             nm = NUMBERED_RE.match(line)
             if nm:
+                # Skip if it looks like a plain list number with no real title
                 body_text = nm.group(2).strip()
                 if len(body_text) < 5:
                     continue
+                # Skip pure page refs like "1. Introduction  4  4"
                 if re.match(r'.+\s+\d+\s+\d+$', body_text):
                     continue
-                # Skip abbreviation/reference list lines like "1. AFQMS: Approval of..."
-                if re.match(r'[A-Z]{2,}[:/]', body_text):
-                    continue
                 flush()
-                int_num = nm.group(1)
-                parent  = last_dotted_num if last_dotted_num else ""
-                pending_num     = f"{parent}/{int_num}" if parent else int_num
+                int_num         = nm.group(1)
+                pending_num     = int_num
                 pending_section = current_section
                 pending_body    = [body_text]
                 last_int_num    = int_num
@@ -374,9 +325,8 @@ def load_model(model_path):
 # DEFAULT_PROMPT is shown in the UI and can be edited by the auditor before generation.
 # The {focus} slot is filled with any extra auditor instructions (empty string if none).
 # The {text} slot is always filled with the clause text at runtime.
-DEFAULT_CHECKPOINT_PROMPT = """<|im_start|>system
-You are a government quality auditor. Output only a numbered list of audit questions, nothing else. /no_think<|im_end|>
-<|im_start|>user
+DEFAULT_CHECKPOINT_PROMPT = """[INST] You are a government quality auditor building a master audit checklist.
+
 Read the clause text below carefully. Identify EVERY distinct auditable requirement in it.
 Each sentence or sub-point that describes something that must be done, verified, maintained,
 established, submitted, or complied with is a separate checkpoint.
@@ -390,9 +340,8 @@ Example output format:
 3. Are corrective and preventive actions defined and implemented?
 
 CLAUSE TEXT:
-{text}<|im_end|>
-<|im_start|>assistant
-"""
+{text}
+[/INST]"""
 
 def extract_checkpoints(llm, clause, prompt_template=None, focus=""):
     """
@@ -415,7 +364,7 @@ def extract_checkpoints(llm, clause, prompt_template=None, focus=""):
         temperature=0.15,
         top_p=0.9,
         repeat_penalty=1.1,
-        stop=["<|im_end|>", "<|im_start|>", "\n\n\n"],
+        stop=["</s>", "[INST]", "\n\n\n"],
         echo=False,
     )["choices"][0]["text"].strip()
 
