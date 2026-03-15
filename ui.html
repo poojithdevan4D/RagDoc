@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Checklist Generator</title>
+<style>
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/static/ibmplexmono.woff2') format('woff2');
+  font-weight: 400 500;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('/static/ibmplexsans.woff2') format('woff2');
+  font-weight: 300 400 500 600;
+}
+
+:root {
+  --navy:   #0d1b2a;
+  --navy2:  #1a2e45;
+  --navy3:  #1f4e79;
+  --steel:  #2c5f8a;
+  --accent: #e8a020;
+  --accent2:#f0c050;
+  --light:  #e8edf2;
+  --muted:  #7a92a8;
+  --white:  #f5f8fb;
+  --green:  #2e7d52;
+  --red:    #9b2335;
+  --amber:  #c07010;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--navy);
+  color: var(--light);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  background: var(--navy2);
+  border-bottom: 2px solid var(--navy3);
+  padding: 0 2rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo-mark {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  flex-shrink: 0;
+}
+
+header h1 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.header-tag {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  max-width: 1140px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+  gap: 0;
+  align-items: start;
+}
+
+.panel-left  { padding-right: 2.5rem; border-right: 1px solid var(--navy2); }
+.panel-right { padding-left: 2.5rem; }
+
+.section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+h2 {
+  font-size: 1.55rem;
+  font-weight: 300;
+  line-height: 1.3;
+  color: var(--white);
+  margin-bottom: 0.6rem;
+}
+
+h2 strong { font-weight: 600; color: var(--accent2); }
+
+.subtitle {
+  font-size: 0.83rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 1.75rem;
+}
+
+/* ── Drop zone ── */
+.dropzone {
+  border: 1.5px dashed var(--steel);
+  border-radius: 4px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255,255,255,0.02);
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+.dropzone:hover, .dropzone.drag-over {
+  border-color: var(--accent);
+  background: rgba(232,160,32,0.06);
+}
+.dropzone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.dropzone p { font-size: 0.83rem; color: var(--muted); margin-bottom: 0.25rem; }
+.dropzone .file-types {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem; color: var(--navy3); letter-spacing: 0.05em;
+}
+
+.file-selected {
+  display: none;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(46,125,82,0.12);
+  border: 1px solid var(--green);
+  border-radius: 4px;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.83rem;
+}
+.file-selected .fname {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.76rem; color: var(--white);
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.file-selected .fsize { font-size: 0.73rem; color: var(--muted); flex-shrink: 0; }
+.remove-btn {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 1rem; padding: 0 0.2rem; flex-shrink: 0;
+}
+.remove-btn:hover { color: var(--red); }
+
+/* ── Options row ── */
+.options-row {
+  display: flex; gap: 1rem; margin-bottom: 1.25rem; align-items: flex-end;
+}
+.field { flex: 1; display: flex; flex-direction: column; gap: 0.35rem; }
+label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+input[type=number], input[type=text] {
+  background: var(--navy2); border: 1px solid var(--navy3); border-radius: 3px;
+  color: var(--white); font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.83rem; padding: 0.55rem 0.75rem; width: 100%; outline: none;
+  transition: border-color 0.15s;
+}
+input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); }
+
+/* ── Depth control ── */
+.depth-section {
+  margin-bottom: 1.25rem;
+}
+.depth-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.depth-presets {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+.preset-btn {
+  padding: 0.5rem 0.3rem;
+  background: var(--navy2);
+  border: 1px solid var(--navy3);
+  border-radius: 3px;
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+.preset-btn.active {
+  background: var(--navy3);
+  border-color: var(--accent);
+  color: var(--accent2);
+}
+
+.preset-desc {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+  font-family: 'IBM Plex Mono', monospace;
+  min-height: 1.1rem;
+}
+
+.custom-row {
+  display: none;
+  gap: 1rem;
+  align-items: flex-end;
+}
+.custom-row.visible { display: flex; }
+
+/* ── Generate button ── */
+.btn-generate {
+  width: 100%; padding: 0.85rem;
+  background: var(--accent); color: var(--navy);
+  border: none; border-radius: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+}
+.btn-generate:hover:not(:disabled) { background: var(--accent2); transform: translateY(-1px); }
+.btn-generate:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(0,0,0,0.2); border-top-color: var(--navy);
+  border-radius: 50%; animation: spin 0.7s linear infinite; display: none;
+}
+.btn-generate.loading .spinner { display: block; }
+.btn-generate.loading .btn-text { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Log box ── */
+.log-box {
+  background: var(--navy2); border: 1px solid var(--navy3);
+  border-radius: 4px; padding: 1rem; height: 260px;
+  overflow-y: auto; font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.71rem; line-height: 1.7; color: var(--muted);
+  margin-bottom: 1.25rem; scroll-behavior: smooth;
+}
+.log-line { display: flex; gap: 0.5rem; }
+.log-time { color: var(--navy3); flex-shrink: 0; }
+.log-ok   { color: #4caf82; }
+.log-warn { color: var(--accent); }
+.log-err  { color: #e05555; }
+.log-info { color: var(--muted); }
+.log-placeholder {
+  height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.5rem; color: var(--navy3); font-size: 0.73rem;
+}
+
+/* ── Progress ── */
+.progress-wrap { margin-bottom: 1.25rem; display: none; }
+.progress-wrap.visible { display: block; }
+.progress-label {
+  display: flex; justify-content: space-between;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem; color: var(--muted); margin-bottom: 0.35rem;
+}
+.progress-bar { height: 4px; background: var(--navy2); border-radius: 2px; overflow: hidden; }
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--navy3), var(--accent));
+  width: 0%; transition: width 0.3s ease; border-radius: 2px;
+}
+
+/* ── Result cards ── */
+.result-section { display: none; }
+.result-section.visible { display: block; }
+
+.result-header {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #4caf82; margin-bottom: 0.75rem;
+}
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem; margin-bottom: 1rem;
+}
+.stat {
+  background: rgba(255,255,255,0.03);
+  border-radius: 3px; padding: 0.55rem 0.75rem;
+}
+.stat-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.15rem; font-weight: 500; color: var(--white);
+}
+.stat-lbl { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+
+.download-row { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem; }
+
+.btn-download {
+  width: 100%; padding: 0.72rem;
+  border: none; border-radius: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.76rem; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  text-decoration: none;
+}
+.btn-master   { background: var(--green);  color: #fff; }
+.btn-master:hover   { background: #379163; transform: translateY(-1px); }
+.btn-filtered { background: var(--navy3);  color: var(--white); border: 1px solid var(--steel); }
+.btn-filtered:hover { background: var(--steel); transform: translateY(-1px); }
+
+.depth-badge {
+  display: inline-block;
+  background: rgba(232,160,32,0.15);
+  border: 1px solid var(--amber);
+  border-radius: 3px;
+  padding: 0.2rem 0.5rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem;
+  color: var(--accent2);
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+}
+
+/* ── Error ── */
+.error-card {
+  display: none; background: rgba(155,35,53,0.1);
+  border: 1px solid var(--red); border-radius: 4px;
+  padding: 0.9rem; margin-bottom: 1.25rem;
+  font-size: 0.8rem; color: #e07080; line-height: 1.5;
+}
+.error-card.visible { display: block; }
+
+/* ── How it works ── */
+.how-it-works {
+  border-top: 1px solid var(--navy2); padding-top: 1.25rem; margin-top: 0.5rem;
+}
+.how-it-works h4 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.63rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 0.9rem;
+}
+.steps { display: flex; flex-direction: column; gap: 0.55rem; }
+.step { display: flex; gap: 0.75rem; align-items: flex-start; }
+.step-num {
+  width: 20px; height: 20px; background: var(--navy2);
+  border: 1px solid var(--navy3); border-radius: 50%;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); flex-shrink: 0; margin-top: 1px;
+}
+.step-text { font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+.step-text strong { color: var(--light); font-weight: 500; }
+
+/* ── Prompt editor ── */
+.prompt-section { margin-bottom: 1.25rem; }
+.prompt-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+.prompt-toggle {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem; color: var(--accent);
+  background: none; border: none; cursor: pointer;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0; transition: color 0.15s;
+}
+.prompt-toggle:hover { color: var(--accent2); }
+.prompt-body { display: none; }
+.prompt-body.visible { display: block; }
+.prompt-textarea {
+  width: 100%; background: var(--navy2);
+  border: 1px solid var(--navy3); border-radius: 3px;
+  color: var(--light); font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem; line-height: 1.6;
+  padding: 0.75rem; resize: vertical; min-height: 180px;
+  outline: none; transition: border-color 0.15s;
+  margin-bottom: 0.5rem;
+}
+.prompt-textarea:focus { border-color: var(--accent); }
+.prompt-note {
+  font-size: 0.7rem; color: var(--muted); line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+.prompt-note code {
+  font-family: 'IBM Plex Mono', monospace;
+  background: rgba(255,255,255,0.06);
+  padding: 0.1rem 0.3rem; border-radius: 2px;
+  color: var(--accent2); font-size: 0.68rem;
+}
+.focus-input {
+  background: var(--navy2); border: 1px solid var(--navy3);
+  border-radius: 3px; color: var(--white);
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem;
+  padding: 0.55rem 0.75rem; width: 100%; outline: none;
+  transition: border-color 0.15s; margin-bottom: 0.5rem;
+}
+.focus-input:focus { border-color: var(--accent); }
+.btn-reset-prompt {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.66rem;
+  color: var(--muted); background: none; border: none;
+  cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0; transition: color 0.15s;
+}
+.btn-reset-prompt:hover { color: var(--accent); }
+
+@media (max-width: 720px) {
+  main { grid-template-columns: 1fr; }
+  .panel-left { padding-right: 0; border-right: none; border-bottom: 1px solid var(--navy2); padding-bottom: 2rem; margin-bottom: 2rem; }
+  .panel-right { padding-left: 0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark"></div>
+  <h1>Audit Checklist Generator</h1>
+  <span class="header-tag">DGAQA · OFFLINE LLM · v2.0</span>
+</header>
+
+<main>
+  <!-- LEFT PANEL -->
+  <div class="panel-left">
+    <div class="section-label">Document Input</div>
+    <h2>Generate a <strong>master audit checklist</strong> from any regulatory document</h2>
+    <p class="subtitle">Upload a government standards or regulatory PDF. The system extracts every distinct auditable requirement, then generates a filtered audit sheet based on your chosen depth.</p>
+
+    <!-- Drop zone -->
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept=".pdf" />
+      <p>Drop PDF here or <span style="color:var(--accent)">browse</span></p>
+      <p class="file-types">Supported: .PDF — Government / Regulatory Documents</p>
+    </div>
+
+    <div class="file-selected" id="fileSelected">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <path d="M13 2H5L3 4v10h10V2z" stroke="#4caf82" stroke-width="1.2"/>
+        <path d="M5 2v2H3" stroke="#4caf82" stroke-width="1.2"/>
+      </svg>
+      <span class="fname" id="fileName">—</span>
+      <span class="fsize" id="fileSize">—</span>
+      <button class="remove-btn" id="removeFile">✕</button>
+    </div>
+
+    <!-- Basic options -->
+    <div class="options-row">
+      <div class="field">
+        <label for="maxItems">Max Clauses</label>
+        <input type="number" id="maxItems" value="10" min="1" max="500" />
+      </div>
+      <div class="field">
+        <label for="docTitle">Document Title <span style="color:var(--navy3)">(optional)</span></label>
+        <input type="text" id="docTitle" placeholder="Auto-detected from filename" />
+      </div>
+    </div>
+
+    <!-- Audit depth -->
+    <div class="depth-section">
+      <div class="depth-label-row">
+        <label style="margin:0">Audit Depth</label>
+      </div>
+
+      <div class="depth-presets">
+        <button class="preset-btn" data-depth="light">Light</button>
+        <button class="preset-btn active" data-depth="standard">Standard</button>
+        <button class="preset-btn" data-depth="deep">Deep</button>
+        <button class="preset-btn" data-depth="full">Full</button>
+      </div>
+
+      <div class="preset-desc" id="presetDesc">N=2 per clause, 50% coverage — balanced audit</div>
+
+      <!-- Custom toggle -->
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">
+        <input type="checkbox" id="customToggle" style="accent-color:var(--accent);cursor:pointer;" />
+        <label for="customToggle" style="margin:0;cursor:pointer;color:var(--light);font-size:0.78rem;text-transform:none;letter-spacing:0;">
+          Custom (set N and M% manually)
+        </label>
+      </div>
+
+      <div class="custom-row" id="customRow">
+        <div class="field">
+          <label>Min checkpoints per clause (N)</label>
+          <input type="number" id="customN" value="2" min="1" max="20" />
+        </div>
+        <div class="field">
+          <label>Coverage per clause (M%)</label>
+          <input type="number" id="customM" value="50" min="1" max="100" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Prompt editor -->
+    <div class="prompt-section">
+      <div class="prompt-header">
+        <label style="margin:0">LLM Extraction Prompt</label>
+        <button class="prompt-toggle" id="promptToggle">▶ Edit Prompt</button>
+      </div>
+      <div class="prompt-body" id="promptBody">
+        <p class="prompt-note">
+          This is the prompt sent to the LLM for each clause. Edit it to focus the
+          extraction on specific requirements. Keep <code>{text}</code> and
+          <code>{focus}</code> placeholders in place.
+        </p>
+        <textarea class="prompt-textarea" id="promptTextarea" spellcheck="false"></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <label style="margin:0;font-size:0.72rem;color:var(--light);text-transform:none;letter-spacing:0;">
+            Auditor Focus <span style="color:var(--muted)">(optional — appended to prompt)</span>
+          </label>
+          <button class="btn-reset-prompt" id="resetPrompt">↺ Reset to default</button>
+        </div>
+        <input type="text" class="focus-input" id="auditorFocus"
+               placeholder="e.g. Focus on quality documentation and design approval requirements" />
+      </div>
+    </div>
+
+    <button class="btn-generate" id="generateBtn" disabled>
+      <div class="spinner"></div>
+      <span class="btn-text">▶ &nbsp; Generate Checklist</span>
+    </button>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel-right">
+    <div class="section-label">Processing Log</div>
+
+    <div class="log-box" id="logBox">
+      <div class="log-placeholder" id="logPlaceholder">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="18" height="18" rx="2" stroke="#1f4e79" stroke-width="1.5"/>
+          <path d="M7 8h10M7 12h6M7 16h8" stroke="#1f4e79" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>Awaiting document upload</span>
+      </div>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label">
+        <span id="progressLabel">Processing...</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <div class="error-card" id="errorCard"></div>
+
+    <!-- Result section -->
+    <div class="result-section" id="resultSection">
+      <div class="result-header">✓ Generation Complete</div>
+
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="stat-val" id="statClauses">—</div>
+          <div class="stat-lbl">Clauses found</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="statMaster">—</div>
+          <div class="stat-lbl">Total checkpoints</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="statFiltered">—</div>
+          <div class="stat-lbl">Audit sheet items</div>
+        </div>
+      </div>
+
+      <div class="depth-badge" id="depthBadge">STANDARD — N=2, M=50%</div>
+
+      <div class="download-row">
+        <a class="btn-download btn-master" id="masterBtn" href="#" download>
+          ↓ &nbsp; Download Master Checklist (all checkpoints)
+        </a>
+        <a class="btn-download btn-filtered" id="filteredBtn" href="#" download>
+          ↓ &nbsp; Download Audit Sheet (filtered by depth)
+        </a>
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="how-it-works">
+      <h4>How it works</h4>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>Structure Detection</strong> — LLM identifies section headers and clause numbering format</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>Clause Extraction</strong> — All obligation clauses parsed directly from the PDF</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>Checkpoint Extraction</strong> — Every distinct auditable requirement within each clause becomes a separate checklist row</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>Master Checklist</strong> — Word document with all checkpoints, subpoint refs (e.g. 2.1 — 3/6)</div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-text"><strong>Audit Sheet</strong> — Filtered subset based on depth: N min checkpoints or M% per clause, whichever is less</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── State ──
+let selectedFile = null;
+let masterUrl    = null;
+let filteredUrl  = null;
+let activeDepth  = 'standard';
+
+const PRESET_DESCS = {
+  light:    'N=1 per clause, 25% coverage — quick surface audit',
+  standard: 'N=2 per clause, 50% coverage — balanced audit',
+  deep:     'N=3 per clause, 75% coverage — thorough audit',
+  full:     'All checkpoints, 100% coverage — exhaustive audit',
+};
+
+// ── Elements ──
+const dropzone    = document.getElementById('dropzone');
+const fileInput   = document.getElementById('fileInput');
+const fileSelected= document.getElementById('fileSelected');
+const fileName    = document.getElementById('fileName');
+const fileSize    = document.getElementById('fileSize');
+const removeFile  = document.getElementById('removeFile');
+const generateBtn = document.getElementById('generateBtn');
+const logBox      = document.getElementById('logBox');
+const logPlaceholder = document.getElementById('logPlaceholder');
+const progressWrap= document.getElementById('progressWrap');
+const progressFill= document.getElementById('progressFill');
+const progressLabel=document.getElementById('progressLabel');
+const progressPct = document.getElementById('progressPct');
+const resultSection=document.getElementById('resultSection');
+const errorCard   = document.getElementById('errorCard');
+const masterBtn   = document.getElementById('masterBtn');
+const filteredBtn = document.getElementById('filteredBtn');
+const customToggle= document.getElementById('customToggle');
+const customRow   = document.getElementById('customRow');
+const presetDesc  = document.getElementById('presetDesc');
+
+// ── Depth presets ──
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (customToggle.checked) return;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeDepth = btn.dataset.depth;
+    presetDesc.textContent = PRESET_DESCS[activeDepth];
+  });
+});
+
+customToggle.addEventListener('change', () => {
+  customRow.classList.toggle('visible', customToggle.checked);
+  if (customToggle.checked) {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    presetDesc.textContent = 'Manual N and M% — you control the depth';
+  } else {
+    document.querySelector(`.preset-btn[data-depth="${activeDepth}"]`).classList.add('active');
+    presetDesc.textContent = PRESET_DESCS[activeDepth];
+  }
+});
+
+// ── File handling ──
+function formatBytes(b) {
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+function setFile(file) {
+  if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+    showError('Only PDF files are supported.'); return;
+  }
+  selectedFile = file;
+  fileName.textContent = file.name;
+  fileSize.textContent = formatBytes(file.size);
+  dropzone.style.display = 'none';
+  fileSelected.style.display = 'flex';
+  generateBtn.disabled = false;
+  errorCard.classList.remove('visible');
+  resultSection.classList.remove('visible');
+  if (!document.getElementById('docTitle').value)
+    document.getElementById('docTitle').value = file.name.replace('.pdf','').replace(/[_-]/g,' ');
+}
+
+fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+removeFile.addEventListener('click', () => {
+  selectedFile = null; fileInput.value = '';
+  dropzone.style.display = ''; fileSelected.style.display = 'none';
+  generateBtn.disabled = true;
+  document.getElementById('docTitle').value = '';
+  resultSection.classList.remove('visible');
+  errorCard.classList.remove('visible');
+});
+
+// ── Logging ──
+function addLog(msg, type='info') {
+  logPlaceholder.style.display = 'none';
+  const ts   = new Date().toTimeString().slice(0,8);
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${ts}</span><span class="log-${type}">${msg}</span>`;
+  logBox.appendChild(line);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function clearLog() {
+  logBox.innerHTML = '';
+  logBox.appendChild(logPlaceholder);
+  logPlaceholder.style.display = '';
+}
+
+function setProgress(pct, label) {
+  progressWrap.classList.add('visible');
+  progressFill.style.width = pct + '%';
+  progressLabel.textContent = label;
+  progressPct.textContent   = pct + '%';
+}
+
+function showError(msg) {
+  errorCard.textContent = '⚠ ' + msg;
+  errorCard.classList.add('visible');
+  resultSection.classList.remove('visible');
+}
+
+function b64toBlob(b64, mime) {
+  const bytes = atob(b64);
+  const arr   = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+// ── Prompt editor ──
+let defaultPromptText = "";
+
+async function loadDefaultPrompt() {
+  try {
+    const r = await fetch('/default_prompt');
+    defaultPromptText = await r.text();
+    document.getElementById('promptTextarea').value = defaultPromptText;
+  } catch(e) {
+    // Server not ready yet or offline — set a sensible fallback
+    document.getElementById('promptTextarea').value =
+      "[INST] You are a government quality auditor.\n\nIdentify EVERY distinct auditable requirement in the clause below.\nWrite each as a YES/NO audit question (max 15 words).\nNumber them. Output ONLY the numbered list.{focus}\n\nCLAUSE TEXT:\n{text}\n[/INST]";
+  }
+}
+loadDefaultPrompt();
+
+document.getElementById('promptToggle').addEventListener('click', () => {
+  const body   = document.getElementById('promptBody');
+  const toggle = document.getElementById('promptToggle');
+  const open   = body.classList.toggle('visible');
+  toggle.textContent = open ? '▼ Hide Prompt' : '▶ Edit Prompt';
+});
+
+document.getElementById('resetPrompt').addEventListener('click', () => {
+  document.getElementById('promptTextarea').value = defaultPromptText;
+  document.getElementById('auditorFocus').value = '';
+});
+
+// ── Generate ──
+generateBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  clearLog();
+  errorCard.classList.remove('visible');
+  resultSection.classList.remove('visible');
+  progressWrap.classList.remove('visible');
+  progressFill.style.width = '0%';
+
+  generateBtn.disabled = true;
+  generateBtn.classList.add('loading');
+
+  addLog(`Uploading: ${selectedFile.name}`, 'info');
+
+  const formData = new FormData();
+  formData.append('pdf',       selectedFile);
+  formData.append('max_items', document.getElementById('maxItems').value);
+  formData.append('doc_title', document.getElementById('docTitle').value);
+
+  if (customToggle.checked) {
+    formData.append('depth',    'custom');
+    formData.append('custom_n', document.getElementById('customN').value);
+    formData.append('custom_m', document.getElementById('customM').value);
+  } else {
+    formData.append('depth', activeDepth);
+  }
+
+  // Always send current prompt (may have been edited by auditor)
+  const promptVal = document.getElementById('promptTextarea').value.trim();
+  const focusVal  = document.getElementById('auditorFocus').value.trim();
+  if (promptVal && promptVal !== defaultPromptText) {
+    formData.append('prompt_template', promptVal);
+  }
+  if (focusVal) {
+    formData.append('auditor_focus', focusVal);
+  }
+
+  try {
+    setProgress(5, 'Uploading document...');
+    addLog('Sending to backend...', 'info');
+
+    const resp = await fetch('/generate', { method: 'POST', body: formData });
+
+    if (!resp.ok) {
+      throw new Error(`Server error ${resp.status}: ${await resp.text()}`);
+    }
+
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer    = '';
+    let finalData = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+          if (msg.type === 'log')      addLog(msg.text, msg.level || 'info');
+          else if (msg.type === 'progress') setProgress(msg.pct, msg.label);
+          else if (msg.type === 'done')     finalData = msg;
+          else if (msg.type === 'error')    throw new Error(msg.text);
+        } catch(e) {
+          if (!line.startsWith('{')) continue;
+          throw e;
+        }
+      }
+    }
+
+    if (!finalData) throw new Error('No output received from server.');
+
+    // ── Success ──
+    setProgress(100, 'Complete');
+    addLog(`✓ Master: ${finalData.master_items} checkpoints across ${finalData.total_clauses} clauses`, 'ok');
+    addLog(`✓ Audit sheet: ${finalData.filtered_items} items (${finalData.depth_label})`, 'ok');
+
+    if (masterUrl)   URL.revokeObjectURL(masterUrl);
+    if (filteredUrl) URL.revokeObjectURL(filteredUrl);
+
+    masterUrl   = URL.createObjectURL(b64toBlob(finalData.master_file,   DOCX_MIME));
+    filteredUrl = URL.createObjectURL(b64toBlob(finalData.filtered_file, DOCX_MIME));
+
+    const base = selectedFile.name.replace('.pdf','');
+    masterBtn.href     = masterUrl;
+    masterBtn.download = `Master_Checklist_${base}.docx`;
+    filteredBtn.href     = filteredUrl;
+    filteredBtn.download = `Audit_Sheet_${finalData.depth_label}_${base}.docx`;
+
+    document.getElementById('statClauses').textContent  = finalData.total_clauses;
+    document.getElementById('statMaster').textContent   = finalData.master_items;
+    document.getElementById('statFiltered').textContent = finalData.filtered_items;
+    document.getElementById('depthBadge').textContent   =
+      `${finalData.depth_label} — N=${finalData.n_val}, M=${finalData.m_val}%`;
+
+    resultSection.classList.add('visible');
+
+  } catch(err) {
+    addLog('ERROR: ' + err.message, 'err');
+    showError(err.message);
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.classList.remove('loading');
+  }
+});
+</script>
+</body>
+</html>
