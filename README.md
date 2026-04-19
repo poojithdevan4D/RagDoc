@@ -1,180 +1,168 @@
-# Offline Checklist Generator
+# Audit Checklist Generator (BitNet Edition)
 
-A fully **offline**, AI-powered tool that converts government regulatory PDFs into structured DGAQA-format audit checklists in Word (`.docx`).
+Generates structured audit checklists from government/regulatory PDF documents using a **local, offline BitNet LLM** — no cloud API needed.
 
-No data leaves your machine. No internet connection required after setup.
-
----
-
-## What It Does
-
-Upload a regulatory PDF → the system:
-
-1. Extracts all auditable obligation clauses from the document
-2. Uses a local LLM to generate YES/NO audit checkpoint questions per clause
-3. Outputs two Word documents:
-   - **Master Checklist** — every checkpoint extracted from every clause
-   - **Audit Sheet** — a depth-controlled sample (Light / Standard / Deep / Full)
-
-Output follows the standard DGAQA 8-column table format:
-`SL No. | Clause # | Sub Point | Description | Org. Procedure # | Adequacy | Compliant | Remarks`
-
-### Supported Document Types
-
-| Style | Examples |
-|---|---|
-| AFQMS / IMTAR | AFQMS, IMTAR Part 21 |
-| AQA Directives | AQA Directives 01–06/2018 |
-| HAL Policy Documents | HAL CQAG series |
+Upload a PDF → the tool extracts obligation clauses → calls BitNet to turn each clause into YES/NO audit questions → outputs two `.docx` files:
+- **Master Checklist** — all checkpoints
+- **Audit Sheet** — filtered subset at your chosen depth (Light / Standard / Deep / Full)
 
 ---
 
 ## Requirements
 
-| | Minimum |
+| Dependency | Version |
 |---|---|
-| Python | 3.10+ |
-| RAM | 8 GB (16 GB recommended) |
-| Disk | 6 GB free |
-| OS | Linux, macOS, Windows 10/11 |
-| CPU | Any modern x86-64 — no GPU needed |
+| Python | 3.9+ |
+| [bitnet.cpp](https://github.com/microsoft/bitnet.cpp) | latest |
+| BitNet model | `BitNet-b1.58-2B-4T` (GGUF i2_s) |
+| pdfplumber | `pip install pdfplumber` |
+| python-docx | `pip install python-docx` |
+| flask | `pip install flask` |
 
 ---
 
-## Quick Start
+## Installation
 
-### Linux / macOS
+### 1. Build BitNet
 
-```bash
-git clone https://github.com/Arut123/Offline-checklist-generator.git
-cd Offline-checklist-generator
-bash setup.sh
-source .venv/bin/activate
-python3 server.py
+Follow the official instructions at https://github.com/microsoft/bitnet.cpp to build the project. After a successful build you will have a binary at a path like:
+
 ```
-
-### Windows (PowerShell)
-
-```powershell
-git clone https://github.com/Arut123/Offline-checklist-generator.git
-cd Offline-checklist-generator
-
-# Allow scripts (one-time)
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-
-.\setup.ps1
-.\.venv\Scripts\Activate.ps1
-python server.py
-```
-
-Then open **http://localhost:5000**
-
----
-
-## Manual Setup
-
-### 1. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-If `llama-cpp-python` fails:
-
-```bash
-# Linux
-CMAKE_ARGS="-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS" pip install llama-cpp-python
-
-# macOS (Apple Silicon)
-CMAKE_ARGS="-DLLAMA_METAL=on" pip install llama-cpp-python
-
-# Windows — install Visual C++ Build Tools first, then:
-pip install llama-cpp-python --no-cache-dir
+/path/to/bitnet.cpp/build/bin/llama-cli
 ```
 
 ### 2. Download the model
 
-Download `mistral-7b-instruct-v0.2.Q4_K_M.gguf` (~4 GB):
+Download the `BitNet-b1.58-2B-4T` GGUF model (i2_s quantisation). The model file will be at a path like:
 
 ```
-https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+/path/to/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
 ```
 
-Place it in the `models/` folder:
-
-```
-Offline-checklist-generator/
-└── models/
-    └── mistral-7b-instruct-v0.2.Q4_K_M.gguf
-```
-
-### 3. Download UI fonts (optional — for fully offline use)
+### 3. Install Python dependencies
 
 ```bash
-mkdir -p static
-curl -sL "https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKjQ.woff2" -o static/ibmplexsans.woff2
-curl -sL "https://fonts.gstatic.com/s/ibmplexmono/v19/-F6pfjptAgt5VM-kVkqdyU8n3kwq.woff2" -o static/ibmplexmono.woff2
+pip install flask pdfplumber python-docx
 ```
 
-### 4. Run
+### 4. Clone this repo
+
+```bash
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
+cd YOUR_REPO
+```
+
+---
+
+## Configuration
+
+**No paths are hardcoded.** You configure the binary and model via environment variables:
+
+```bash
+export BITNET_CLI=/path/to/bitnet.cpp/build/bin/llama-cli
+export BITNET_MODEL=/path/to/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
+```
+
+You can add these to your shell profile (`~/.bashrc`, `~/.zshrc`) so they persist across sessions:
+
+```bash
+echo 'export BITNET_CLI=/path/to/bitnet.cpp/build/bin/llama-cli' >> ~/.bashrc
+echo 'export BITNET_MODEL=/path/to/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Or create a `.env` file in the project directory and source it before running:
+
+```bash
+# .env
+export BITNET_CLI=/path/to/bitnet.cpp/build/bin/llama-cli
+export BITNET_MODEL=/path/to/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
+```
+
+```bash
+source .env && python3 server.py
+```
+
+---
+
+## Running the Web UI
 
 ```bash
 python3 server.py
 ```
 
----
+Then open **http://localhost:5000** in your browser.
 
-## Using a Different Model
-
-Any GGUF instruction-tuned model works. Place it in `models/` and the server auto-detects it on startup. Or point to it explicitly:
+Optional port/host overrides:
 
 ```bash
-# Linux / macOS
-export MODEL_PATH=/path/to/your/model.gguf
-python3 server.py
-
-# Windows
-set MODEL_PATH=C:\path\to\your\model.gguf
-python server.py
+HOST=127.0.0.1 PORT=8080 python3 server.py
 ```
 
 ---
 
-## Project Structure
+## Running from the Command Line (no UI)
 
+```bash
+python3 checklist_generator.py your_document.pdf [max_clauses]
 ```
-Offline-checklist-generator/
-├── server.py                  # Flask web server — run this
-├── checklist_generator.py     # Core pipeline: PDF → clauses → checkpoints → docx
-├── ui.html                    # Frontend (served by Flask)
-├── requirements.txt           # Python dependencies
-├── setup.sh                   # Setup script for Linux / macOS
-├── setup.ps1                  # Setup script for Windows
-├── models/                    # Place your .gguf model file here
-└── static/                    # Place font .woff2 files here (optional)
+
+Example:
+
+```bash
+python3 checklist_generator.py regulations.pdf 20
 ```
+
+This writes two files to the current directory:
+- `Audit_Checklist.docx` — master checklist
+- `Audit_Checklist_filtered.docx` — standard-depth audit sheet
+
+---
+
+## File Overview
+
+| File | Purpose |
+|---|---|
+| `server.py` | Flask backend — handles PDF upload, streams progress, returns `.docx` files |
+| `checklist_generator.py` | Core logic — PDF reading, clause extraction, BitNet inference, Word output |
+| `ui.html` | Single-file frontend — served by Flask at `/` |
+
+### Optional: Custom fonts
+
+The UI references two optional web fonts via `/static/`:
+- `ibmplexmono.woff2`
+- `ibmplexsans.woff2`
+
+If these are not present, the browser falls back to system monospace/sans-serif fonts and everything works fine. To use the exact fonts, download IBM Plex Mono and IBM Plex Sans from [Google Fonts](https://fonts.google.com) and place the `.woff2` files in a `static/` folder next to `ui.html`.
+
+---
+
+## Audit Depth Presets
+
+| Preset | Min per clause (N) | % of checkpoints (M) |
+|---|---|---|
+| Light | 1 | 25% |
+| Standard | 2 | 50% |
+| Deep | 3 | 75% |
+| Full | all | 100% |
+
+You can also set N and M manually with the **Custom** option in the UI.
 
 ---
 
 ## Troubleshooting
 
-**`Model not loaded` error** — No `.gguf` file found in `models/`. Verify the file is there or set `MODEL_PATH`.
+**"BitNet binary not found"**
+→ Check your `BITNET_CLI` path is correct and the binary is executable (`chmod +x`).
 
-**`llama-cpp-python` install fails on Windows** — Install [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) first.
+**"Model file not found"**
+→ Check your `BITNET_MODEL` path. Make sure the `.gguf` file was downloaded completely.
 
-**PDF shows 0 readable pages** — PDF is scanned/image-only. Run OCR first:
-```bash
-pip install ocrmypdf
-ocrmypdf input.pdf output.pdf
-```
+**"No clauses found"**
+→ The PDF may be scanned (image-only). The tool requires machine-readable text. Try a text-layer PDF.
 
-**Port 5000 in use:**
-```bash
-PORT=8080 python3 server.py
-```
+**Generation is slow**
+→ BitNet runs on CPU by default. Generation time scales with the number of clauses. Start with a low `Max Clauses` value (e.g. 5–10) to test.
 
----
-
-## Security
-
-Designed for internal / intranet use only. No authentication is built in. Do not expose on a public network without a reverse proxy and access controls.
+**Port already in use**
+→ Run with `PORT=8080 python3 server.py` or kill the existing process on port 5000.

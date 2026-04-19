@@ -426,6 +426,36 @@ input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); 
 }
 .btn-reset-prompt:hover { color: var(--accent); }
 
+/* ── Percentage slider ── */
+.pct-slider-row {
+  margin-bottom: 1.25rem;
+}
+.pct-slider-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+.pct-value-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem; color: var(--accent2);
+  background: rgba(232,160,32,0.12);
+  border: 1px solid var(--amber);
+  border-radius: 3px; padding: 0.1rem 0.45rem;
+}
+input[type=range] {
+  width: 100%; accent-color: var(--accent);
+  height: 4px; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--fill,50%), var(--navy2) var(--fill,50%), var(--navy2) 100%);
+  border-radius: 2px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--accent); cursor: pointer;
+  border: 2px solid var(--navy);
+}
+.pct-ticks {
+  display: flex; justify-content: space-between;
+  font-family: 'IBM Plex Mono', monospace;
 @media (max-width: 720px) {
   main { grid-template-columns: 1fr; }
   .panel-left { padding-right: 0; border-right: none; border-bottom: 1px solid var(--navy2); padding-bottom: 2rem; margin-bottom: 2rem; }
@@ -510,6 +540,42 @@ input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); 
           <input type="number" id="customM" value="50" min="1" max="100" />
         </div>
       </div>
+    </div>
+
+    <!-- Percentage slider (applies on top of depth preset) -->
+    <div class="pct-slider-row">
+      <div class="pct-slider-header">
+        <label style="margin:0">Checkpoint Coverage Override</label>
+        <span class="pct-value-badge" id="pctValueBadge">50%</span>
+      </div>
+      <p class="section-filter-note" style="margin-bottom:0.5rem;">
+        Overrides the M% of the selected depth. Rounds to nearest integer per clause.
+        Move slider to change; <code>—</code> means use preset default.
+      </p>
+      <input type="range" id="pctSlider" min="1" max="100" value="50"
+             style="--fill:50%" oninput="onPctSlider(this)" />
+      <div class="pct-ticks">
+        <span>1%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.55rem;">
+        <input type="checkbox" id="pctOverrideToggle" style="accent-color:var(--accent);cursor:pointer;" />
+        <label for="pctOverrideToggle" style="margin:0;cursor:pointer;color:var(--light);font-size:0.78rem;text-transform:none;letter-spacing:0;">
+          Enable percentage override
+        </label>
+      </div>
+    </div>
+
+    <!-- Section filter -->
+    <div class="section-filter-section">
+      <label style="margin-bottom:0.35rem;display:block">Section / Clause Filter <span style="color:var(--navy3)">(optional)</span></label>
+      <p class="section-filter-note">
+        Restrict extraction to specific sections. Comma-separated clause prefixes or identifiers
+        from the document, e.g. <code>21 C1, 21.B2</code> or <code>Subpart-B</code>.
+        Matching is substring — <code>21 C1</code> will match <code>21-C1/21.C1.4</code> etc.
+        Leave blank to process the entire document.
+      </p>
+      <input type="text" class="section-filter-input" id="sectionFilter"
+             placeholder="e.g. 21 C1, 21 C2, Subpart-B  (blank = whole document)" />
     </div>
 
     <!-- Prompt editor -->
@@ -634,9 +700,9 @@ let filteredUrl  = null;
 let activeDepth  = 'standard';
 
 const PRESET_DESCS = {
-  light:    'N=1 per clause, 25% coverage — quick surface audit',
-  standard: 'N=2 per clause, 50% coverage — balanced audit',
-  deep:     'N=3 per clause, 75% coverage — thorough audit',
+  light:    'N=1 per clause, min 25% coverage — quick surface audit',
+  standard: 'N=2 per clause, min 50% coverage — balanced audit',
+  deep:     'N=3 per clause, min 75% coverage — thorough audit',
   full:     'All checkpoints, 100% coverage — exhaustive audit',
 };
 
@@ -662,7 +728,27 @@ const customToggle= document.getElementById('customToggle');
 const customRow   = document.getElementById('customRow');
 const presetDesc  = document.getElementById('presetDesc');
 
-// ── Depth presets ──
+// ── Percentage slider ──
+function onPctSlider(el) {
+  const v = el.value;
+  el.style.setProperty('--fill', v + '%');
+  document.getElementById('pctValueBadge').textContent = v + '%';
+}
+
+document.getElementById('pctOverrideToggle').addEventListener('change', function() {
+  const slider = document.getElementById('pctSlider');
+  const badge  = document.getElementById('pctValueBadge');
+  slider.disabled = !this.checked;
+  badge.style.opacity = this.checked ? '1' : '0.35';
+  badge.textContent   = this.checked ? slider.value + '%' : '—';
+});
+// Init — disable slider until toggled on
+(function() {
+  const slider = document.getElementById('pctSlider');
+  slider.disabled = true;
+  document.getElementById('pctValueBadge').style.opacity = '0.35';
+  document.getElementById('pctValueBadge').textContent = '—';
+})();
 document.querySelectorAll('.preset-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     if (customToggle.checked) return;
@@ -827,6 +913,19 @@ generateBtn.addEventListener('click', async () => {
     formData.append('auditor_focus', focusVal);
   }
 
+  // Section filter
+  const sectionFilterVal = document.getElementById('sectionFilter').value.trim();
+  if (sectionFilterVal) {
+    formData.append('section_filter', sectionFilterVal);
+  }
+
+  // Percentage override slider
+  const pctToggle = document.getElementById('pctOverrideToggle');
+  if (pctToggle.checked) {
+    const pctVal = document.getElementById('pctSlider').value;
+    formData.append('custom_pct', pctVal);
+  }
+
   try {
     setProgress(5, 'Uploading document...');
     addLog('Sending to backend...', 'info');
@@ -841,6 +940,8 @@ generateBtn.addEventListener('click', async () => {
     const decoder = new TextDecoder();
     let buffer    = '';
     let finalData = null;
+    let masterB64 = null;
+    let filteredB64 = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -853,8 +954,10 @@ generateBtn.addEventListener('click', async () => {
         if (!line.trim()) continue;
         try {
           const msg = JSON.parse(line);
-          if (msg.type === 'log')      addLog(msg.text, msg.level || 'info');
+          if (msg.type === 'log')           addLog(msg.text, msg.level || 'info');
           else if (msg.type === 'progress') setProgress(msg.pct, msg.label);
+          else if (msg.type === 'master_file')   masterB64 = msg.data;
+          else if (msg.type === 'filtered_file') filteredB64 = msg.data;
           else if (msg.type === 'done')     finalData = msg;
           else if (msg.type === 'error')    throw new Error(msg.text);
         } catch(e) {
@@ -874,8 +977,8 @@ generateBtn.addEventListener('click', async () => {
     if (masterUrl)   URL.revokeObjectURL(masterUrl);
     if (filteredUrl) URL.revokeObjectURL(filteredUrl);
 
-    masterUrl   = URL.createObjectURL(b64toBlob(finalData.master_file,   DOCX_MIME));
-    filteredUrl = URL.createObjectURL(b64toBlob(finalData.filtered_file, DOCX_MIME));
+    masterUrl   = URL.createObjectURL(b64toBlob(masterB64,   DOCX_MIME));
+    filteredUrl = URL.createObjectURL(b64toBlob(filteredB64, DOCX_MIME));
 
     const base = selectedFile.name.replace('.pdf','');
     masterBtn.href     = masterUrl;
