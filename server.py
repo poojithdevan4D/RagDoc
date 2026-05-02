@@ -20,52 +20,88 @@ Optional overrides:
     HOST=0.0.0.0   PORT=5000   (defaults shown)
 """
 
-import os, sys, json, base64, tempfile, traceback, math
+import os, sys, re, json, time, math, io, base64, tempfile, traceback
 from flask import Flask, request, Response, send_from_directory
 
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 
-# ── Path configuration via environment variables ─────────────────────────────
-# Do NOT hard-code paths here. Set these in your shell or a .env file.
-# See README.md for instructions.
-BITNET_CLI  = os.environ.get("BITNET_CLI",  "")
-MODEL_PATH  = os.environ.get("BITNET_MODEL", "")
+# ── Path configuration ───────────────────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def _find_model():
+    models_dir = os.path.join(BASE_DIR, "models")
+    if os.path.isdir(models_dir):
+        for f in sorted(os.listdir(models_dir)):
+            if f.endswith(".gguf"):
+                return os.path.join(models_dir, f)
+    return None
+
+MODEL_PATH = _find_model()
+
+# ── AI Model Initialization (TurboQuant Optimized) ───────────────────────────
+print(f"Loading model: {MODEL_PATH or '(No model found in models/ folder)'}")
+
+LLM = None
+current_mode = "Unknown"
+current_ctx  = 0
+
+if MODEL_PATH:
+    try:
+        from llama_cpp import Llama
+        import llama_cpp
+        
+        # ── Universal Optimization Logic (Auto-Detect Hardware) ──────────
+        # Try for "Truly Quantized" mode, fallback to "Safe Mode" if incompatible
+        n_ctx_target = 8192
+        import llama_cpp
+        
+        try:
+            print(f"[*] Attempting TurboQuant Optimization (8-bit KV + 8k Context)...")
+            LLM = Llama(
+                model_path=MODEL_PATH,
+                n_ctx=n_ctx_target,
+                n_batch=512,
+                type_k=llama_cpp.GGML_TYPE_Q8_0,
+                type_v=llama_cpp.GGML_TYPE_Q8_0,
+                flash_attn=True,
+                n_threads=os.cpu_count() or 4,
+                n_gpu_layers=0,
+                verbose=False
+            )
+            print(f"[*] Success: TurboQuant Mode Enabled.")
+            current_mode = "TurboQuant (8-bit KV)"
+            current_ctx  = n_ctx_target
+        except Exception as e:
+            print(f"[!] Hardware check failed: {e}")
+            print(f"[*] Switching to Universal Safe Mode (F16 KV + 4k Context)...")
+            LLM = Llama(
+                model_path=MODEL_PATH,
+                n_ctx=4096,
+                n_threads=os.cpu_count() or 4,
+                n_gpu_layers=0,
+                verbose=False
+            )
+            current_mode = "Universal Safe Mode (F16)"
+            current_ctx  = 4096
+        
+        print(f"--------------------------------------------------")
+        print(f"  Ready: {current_mode}")
+        print(f"  Context: {current_ctx} tokens")
+        print(f"--------------------------------------------------")
+    except Exception as e:
+        print(f"ERROR: Could not load model: {e}")
+else:
+    print("WARNING: No .gguf model found in models/ directory.")
 
 sys.path.insert(0, BASE_DIR)
-
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-# ── Startup checks ───────────────────────────────────────────────────────────
-print(f"BitNet binary : {BITNET_CLI or '(not set — configure BITNET_CLI)'}")
-print(f"Model         : {MODEL_PATH or '(not set — configure BITNET_MODEL)'}")
-
-_ready = True
-if not BITNET_CLI:
-    print("WARNING: BITNET_CLI environment variable is not set.")
-    _ready = False
-elif not os.path.exists(BITNET_CLI):
-    print(f"WARNING: BitNet binary not found at: {BITNET_CLI}")
-    _ready = False
-
-if not MODEL_PATH:
-    print("WARNING: BITNET_MODEL environment variable is not set.")
-    _ready = False
-elif not os.path.exists(MODEL_PATH):
-    print(f"WARNING: Model file not found at: {MODEL_PATH}")
-    _ready = False
-
-if _ready:
-    print("Ready.")
-else:
-    print("\nSet BITNET_CLI and BITNET_MODEL before generating checklists.")
-    print("See README.md for setup instructions.\n")
-
 from checklist_generator import (
     read_pdf, detect_structure, compile_patterns,
-    extract_clauses, build_master, filter_checkpoints,
-    create_docx, DEPTH_PRESETS,
+    extract_clauses, build_master, build_master_turbo, 
+    filter_checkpoints, create_docx, DEPTH_PRESETS,
 )
 
 
@@ -87,16 +123,11 @@ def default_prompt():
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    if not BITNET_CLI or not MODEL_PATH or \
-       not os.path.exists(BITNET_CLI) or not os.path.exists(MODEL_PATH):
+    if LLM is None:
         return Response(
             json.dumps({
                 "type": "error",
-                "text": (
-                    "BitNet binary or model not found. "
-                    "Set BITNET_CLI and BITNET_MODEL environment variables. "
-                    "See README.md."
-                )
+                "text": "Model not loaded. Check your models/ folder."
             }) + "\n",
             status=500, mimetype="application/x-ndjson"
         )
@@ -111,6 +142,7 @@ def generate():
     prompt_template = request.form.get("prompt_template", "").strip() or None
     auditor_focus   = request.form.get("auditor_focus", "").strip()
     section_filter  = request.form.get("section_filter", "").strip()
+    turbo_mode      = request.form.get("turbo_mode", "false").lower() == "true"
 
     if not pdf_file:
         return Response(
@@ -150,6 +182,9 @@ def generate():
         filtered_path = tmp_path.replace(".pdf", "_filtered.docx")
 
         try:
+            start_time = time.time()
+            yield from emit({"type": "log", "text": "Starting TurboQuant Performance Run...", "level": "info"})
+            
             # 1. Read PDF
             yield from emit({"type": "progress", "pct": 5, "label": "Reading PDF..."})
             pages    = read_pdf(tmp_path)
@@ -161,7 +196,7 @@ def generate():
 
             # 2. Detect structure
             yield from emit({"type": "progress", "pct": 15, "label": "Detecting document structure..."})
-            structure = detect_structure(None, pages)
+            structure = detect_structure(LLM, pages)
             clause_re, sect_re = compile_patterns(structure)
             if structure:
                 yield from emit({"type": "log", "text": f"Structure: {structure.get('clause_example','?')} / {structure.get('section_example','?')}", "level": "ok"})
@@ -185,28 +220,35 @@ def generate():
 
             # 4. Extract checkpoints
             yield from emit({"type": "progress", "pct": 32, "label": f"Extracting checkpoints from {total} clauses..."})
-            master = []
-            for i, clause in enumerate(subset, 1):
-                pct = 32 + int((i / total) * 55)
-                yield from emit({"type": "progress", "pct": pct,
-                                 "label": f"Clause {i}/{total}: {clause['ref'][:45]}"})
+            
+            if turbo_mode:
+                master = build_master_turbo(LLM, subset, focus=auditor_focus, batch_size=5)
+            else:
+                master = []
+                for i, clause in enumerate(subset, 1):
+                    pct = 32 + int((i / total) * 55)
+                    yield from emit({
+                        "type": "progress", "pct": pct,
+                        "label": f"Clause {i}/{total}: {clause['ref'][:45]}"
+                    })
 
-                from checklist_generator import extract_checkpoints
-                checkpoints = extract_checkpoints(None, clause,
-                                                  prompt_template=prompt_template,
-                                                  focus=auditor_focus)
-                n = len(checkpoints)
-                if checkpoints:
-                    for j, q in enumerate(checkpoints, 1):
-                        master.append({
-                            "clause_base": clause["ref"],
-                            "subpoint":    f"{j}/{n}",
-                            "ref":         f"{clause['ref']} ({j}/{n})",
-                            "question":    q,
-                        })
-                    yield from emit({"type": "log", "text": f"[{i}/{total}] {clause['ref']} — {n} checkpoints", "level": "ok"})
-                else:
-                    yield from emit({"type": "log", "text": f"[{i}/{total}] {clause['ref']} — skipped", "level": "warn"})
+                    from checklist_generator import extract_checkpoints
+                    checkpoints = extract_checkpoints(LLM, clause,
+                                                      prompt_template=prompt_template,
+                                                      focus=auditor_focus)
+                    n = len(checkpoints)
+
+                    if checkpoints:
+                        for j, q in enumerate(checkpoints, 1):
+                            master.append({
+                                "clause_base": clause["ref"],
+                                "subpoint":    f"{j}/{n}",
+                                "ref":         f"{clause['ref']} ({j}/{n})",
+                                "question":    q,
+                            })
+                        yield from emit({"type": "log", "text": f"[{i}/{total}] {clause['ref']} — {n} checkpoints", "level": "ok"})
+                    else:
+                        yield from emit({"type": "log", "text": f"[{i}/{total}] {clause['ref']} — skipped", "level": "warn"})
 
             if not master:
                 yield from emit({"type": "error", "text": "No checkpoints extracted. Check model output."})
@@ -215,6 +257,17 @@ def generate():
             # 5. Write master checklist
             yield from emit({"type": "progress", "pct": 89, "label": "Writing master checklist..."})
             title = doc_title or os.path.splitext(pdf_filename)[0].replace("_", " ")
+            
+            duration = time.time() - start_time
+            clauses_count = len(subset)
+            speed = (clauses_count / duration) * 60 if duration > 0 else 0
+            
+            yield from emit({"type": "log", "text": f"Performance Summary:", "level": "ok"})
+            yield from emit({"type": "log", "text": f" - Total Time: {duration:.1f}s", "level": "ok"})
+            yield from emit({"type": "log", "text": f" - Speed: {speed:.1f} clauses/min", "level": "ok"})
+            yield from emit({"type": "log", "text": f" - Context Window: {current_ctx} tokens", "level": "info"})
+            yield from emit({"type": "log", "text": f" - Mode: {current_mode}", "level": "info"})
+
             create_docx(master, master_path, doc_title=title, sheet_label="MASTER AUDIT CHECKLIST")
             yield from emit({"type": "progress", "pct": 91, "label": "Encoding master checklist..."})
             with open(master_path, "rb") as f:
@@ -256,10 +309,9 @@ def generate():
 if __name__ == "__main__":
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", 5000))
-    print(f"\n{'─'*50}")
-    print(f"  Audit Checklist Generator (BitNet)")
+    print(f"\n{'-'*50}")
+    print(f"  Audit Checklist Generator (Local AI)")
     print(f"  http://localhost:{port}")
-    print(f"  Binary : {BITNET_CLI or '(not configured)'}")
     print(f"  Model  : {MODEL_PATH or '(not configured)'}")
-    print(f"{'─'*50}\n")
+    print(f"{'-'*50}\n")
     app.run(host=host, port=port, debug=False, threaded=False)

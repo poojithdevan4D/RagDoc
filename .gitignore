@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Models (Too large for Git)
+models/
+*.gguf
+
+# Project specific
+Audit_Checklist*.docx
+temp_*.pdf
+scratch/
+
+# IDEs
+.vscode/
+.idea/

@@ -18,8 +18,17 @@ MAX_ITEMS   = 10
 
 # ── Configure these via environment variables ────────────────────────────────
 # See README.md for setup instructions.
-BITNET_CLI  = os.environ.get("BITNET_CLI",  "")   # e.g. /path/to/bitnet.cpp/build/bin/llama-cli
-MODEL_PATH  = os.environ.get("BITNET_MODEL", "")  # e.g. /path/to/models/ggml-model-i2_s.gguf
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def _find_model():
+    models_dir = os.path.join(BASE_DIR, "models")
+    if os.path.isdir(models_dir):
+        for f in sorted(os.listdir(models_dir)):
+            if f.endswith(".gguf"):
+                return os.path.join(models_dir, f)
+    return None
+
+MODEL_PATH = _find_model() or os.environ.get("BITNET_MODEL", "")
 
 if len(sys.argv) >= 2: PDF_PATH  = sys.argv[1]
 if len(sys.argv) >= 3: MAX_ITEMS = int(sys.argv[2])
@@ -79,16 +88,13 @@ SKIP_LINE = re.compile(
 )
 
 # ── BitNet inference ─────────────────────────────────────
-def _run_bitnet(prompt, max_tokens=256, temperature=0.1):
+def _run_local_llm(llm, prompt, max_tokens=256, temperature=0.1):
     """
-    Call llama-cli with Llama-3 chat format.
-    Writes prompt to temp file, captures stdout only.
+    Call the local Llama instance with Llama-3 chat format.
     """
-    if not BITNET_CLI or not MODEL_PATH:
-        sys.exit(
-            "ERROR: BITNET_CLI and BITNET_MODEL environment variables must be set.\n"
-            "See README.md for setup instructions."
-        )
+    if llm is None:
+        # Fallback for CLI usage if no LLM is passed
+        return ""
 
     chat_prompt = (
         "<|begin_of_text|>"
@@ -99,35 +105,52 @@ def _run_bitnet(prompt, max_tokens=256, temperature=0.1):
         f"{prompt}<|eot_id|>"
         "<|start_header_id|>assistant<|end_header_id|>\n\n"
     )
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt',
-                                     delete=False, encoding='utf-8') as f:
-        f.write(chat_prompt)
-        prompt_file = f.name
+    
     try:
-        result = subprocess.run(
-            [
-                BITNET_CLI,
-                "-m", MODEL_PATH,
-                "-f", prompt_file,
-                "-n", str(max_tokens),
-                "--temp", str(temperature),
-                "--repeat-penalty", "1.1",
-                "--no-display-prompt",
-                "-c", "4096",
-            ],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=300,
+        output = llm(
+            chat_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stop=["<|eot_id|>", "<|end_of_text|>"],
+            echo=False
         )
-        return result.stdout.strip()
-    except subprocess.TimeoutExpired:
+        return output['choices'][0]['text'].strip()
+    except Exception as e:
+        print(f"Inference error: {e}")
         return ""
-    except FileNotFoundError:
-        sys.exit(f"ERROR: BitNet binary not found at {BITNET_CLI}\n"
-                 "Set the BITNET_CLI environment variable to its correct path.")
-    finally:
-        try: os.unlink(prompt_file)
-        except Exception: pass
 
 # ── Step 1: Read PDF ─────────────────────────────────────
+def load_model(model_path):
+    print(f"\n[4/5] Initializing engine (Auto-Detecting Hardware)...")
+    if not model_path or not os.path.exists(model_path):
+        sys.exit(f"ERROR: Model file not found at {model_path}")
+    
+    from llama_cpp import Llama
+    import llama_cpp
+    
+    try:
+        llm = Llama(
+            model_path=model_path,
+            n_ctx=8192,
+            type_k=llama_cpp.GGML_TYPE_Q8_0,
+            type_v=llama_cpp.GGML_TYPE_Q8_0,
+            flash_attn=True,
+            n_threads=os.cpu_count() or 4,
+            n_gpu_layers=0,
+            verbose=False
+        )
+        print(f"   Success: TurboQuant Mode Enabled (8-bit KV + 8k Context).")
+        return llm
+    except Exception as e:
+        print(f"   Hardware/Build check failed: {e}")
+        print(f"   Switching to Universal Safe Mode (F16 KV + 4k Context).")
+        return Llama(
+            model_path=model_path, 
+            n_ctx=4096, 
+            n_gpu_layers=0, 
+            verbose=False
+        )
+
 def read_pdf(path):
     print(f"\n[1/5] Reading: {path}")
     try:
@@ -177,7 +200,7 @@ def detect_structure(llm, pages):
             sample += f"\n--- PAGE {i+1} ---\n{pages[i][:250]}\n"
         if len(sample) > 2000:
             break
-    raw = _run_bitnet(STRUCTURE_PROMPT.format(sample=sample), max_tokens=150, temperature=0.1)
+    raw = _run_local_llm(llm, STRUCTURE_PROMPT.format(sample=sample), max_tokens=150, temperature=0.1)
     raw = re.sub(r"```json|```", "", raw).strip()
     m = re.search(r'\{.*\}', raw, re.DOTALL)
     if m:
@@ -362,25 +385,7 @@ def extract_clauses(pages, clause_re, section_re, section_filter=None):
     print(f"   {len(unique)} unique obligation clauses found.")
     return unique
 
-# ── Step 5: Load model (verify only) ────────────────────
-def load_model(model_path):
-    print(f"\n[4/5] Checking BitNet setup...")
-    if not BITNET_CLI or not os.path.exists(BITNET_CLI):
-        sys.exit(
-            f"ERROR: BitNet binary not found.\n"
-            f"  BITNET_CLI={BITNET_CLI!r}\n"
-            f"  Set the BITNET_CLI environment variable. See README.md."
-        )
-    if not model_path or not os.path.exists(model_path):
-        sys.exit(
-            f"ERROR: Model file not found.\n"
-            f"  BITNET_MODEL={model_path!r}\n"
-            f"  Set the BITNET_MODEL environment variable. See README.md."
-        )
-    print(f"   Binary : {BITNET_CLI}")
-    print(f"   Model  : {model_path}")
-    print("   Ready.")
-    return None
+
 
 # ── Step 6: Extract checkpoints ──────────────────────────
 DEFAULT_CHECKPOINT_PROMPT = (
@@ -398,7 +403,7 @@ def extract_checkpoints(llm, clause, prompt_template=None, focus=""):
     except KeyError:
         filled = template.replace("{text}", clause["text"][:800])
 
-    raw = _run_bitnet(filled, max_tokens=400, temperature=0.15)
+    raw = _run_local_llm(llm, filled, max_tokens=400, temperature=0.15)
 
     checkpoints = []
     for line in raw.split("\n"):
@@ -414,7 +419,77 @@ def extract_checkpoints(llm, clause, prompt_template=None, focus=""):
                 cleaned += "?"
             checkpoints.append(cleaned)
 
-    return checkpoints if checkpoints else []
+def extract_checkpoints_batch(llm, clauses, focus=""):
+    """
+    Turbo Mode: Extract checkpoints for multiple clauses in one go.
+    """
+    if not clauses: return []
+    
+    batch_text = ""
+    for i, c in enumerate(clauses, 1):
+        batch_text += f"CLAUSE {i} ({c['ref']}):\n{c['text'][:500]}\n\n"
+        
+    prompt = (
+        "Read these regulatory clauses. For EACH clause, list the auditable YES/NO questions.\n"
+        "Format your response as:\n"
+        "CLAUSE 1: [Questions...]\n"
+        "CLAUSE 2: [Questions...]\n"
+        f"{focus}\n\n"
+        f"{batch_text}"
+    )
+    
+    raw = _run_local_llm(llm, prompt, max_tokens=2048, temperature=0.1)
+    
+    # Simple parsing: find which questions belong to which clause
+    # (In a real scenario, this would be more robust, but this matches the 'Turbo' spirit)
+    all_checkpoints = []
+    current_clause_idx = 0
+    
+    lines = raw.split("\n")
+    for line in lines:
+        line = line.strip()
+        if not line: continue
+        
+        # Check if we hit a new clause header in the output
+        if re.search(r'CLAUSE\s+\d+', line, re.IGNORECASE):
+            m = re.search(r'\d+', line)
+            if m:
+                current_clause_idx = int(m.group()) - 1
+            continue
+            
+        if 0 <= current_clause_idx < len(clauses):
+            cleaned = re.sub(r'^[\d]+[\.\)]\s*', '', line).strip()
+            cleaned = re.sub(r'^[-•*]\s*', '', cleaned).strip()
+            if len(cleaned) > 10:
+                if not cleaned.endswith("?"): cleaned += "?"
+                all_checkpoints.append({
+                    "clause_ref": clauses[current_clause_idx]["ref"],
+                    "question": cleaned
+                })
+                
+    return all_checkpoints
+
+def build_master_turbo(llm, clauses, max_items=0, focus="", batch_size=3):
+    subset = clauses[:max_items] if max_items else clauses
+    total  = len(subset)
+    master = []
+    
+    for i in range(0, total, batch_size):
+        batch = subset[i : i + batch_size]
+        print(f"   [Turbo] Processing batch {i//batch_size + 1} ({len(batch)} clauses)...")
+        
+        batch_results = extract_checkpoints_batch(llm, batch, focus=focus)
+        
+        # Reformat into master structure
+        for res in batch_results:
+            master.append({
+                "clause_base": res["clause_ref"],
+                "subpoint": "T", # T for Turbo
+                "ref": f"{res['clause_ref']} (T)",
+                "question": res["question"]
+            })
+            
+    return master
 
 # ── Step 7: Filter checkpoints ───────────────────────────
 def filter_checkpoints(master_rows, n, m_pct, seed=None):
@@ -517,7 +592,8 @@ def main():
     clauses            = extract_clauses(pages, clause_re, sect_re)
     if not clauses: sys.exit("\nERROR: No clauses found.")
     doc_name = os.path.splitext(os.path.basename(PDF_PATH))[0].replace("_", " ")
-    master   = build_master(llm, clauses, max_items=MAX_ITEMS)
+    print(f"\n[5/5] Generating checkpoints (Turbo Mode)...")
+    master   = build_master_turbo(llm, clauses, max_items=MAX_ITEMS, batch_size=5)
     if not master: sys.exit("\nERROR: No checkpoints extracted.")
     create_docx(master, OUTPUT_DOCX, doc_title=doc_name, sheet_label="MASTER AUDIT CHECKLIST")
     print(f"\nMaster: {len(master)} checkpoints -> {OUTPUT_DOCX}")
