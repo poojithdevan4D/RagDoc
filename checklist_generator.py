@@ -136,7 +136,7 @@ def load_model(model_path):
             type_v=llama_cpp.GGML_TYPE_Q8_0,
             flash_attn=True,
             n_threads=os.cpu_count() or 4,
-            n_gpu_layers=0,
+            n_gpu_layers=-1,
             verbose=False
         )
         print(f"   Success: TurboQuant Mode Enabled (8-bit KV + 8k Context).")

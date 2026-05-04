@@ -59,33 +59,32 @@ if MODEL_PATH:
             print(f"[*] Attempting TurboQuant Optimization (8-bit KV + 8k Context)...")
             LLM = Llama(
                 model_path=MODEL_PATH,
-                n_ctx=n_ctx_target,
+                n_ctx=8192,
                 n_batch=512,
+                n_gpu_layers=-1, # GPU UNLOCKED: Offload all layers to RTX 3050
+                flash_attn=True,
                 type_k=llama_cpp.GGML_TYPE_Q8_0,
                 type_v=llama_cpp.GGML_TYPE_Q8_0,
-                flash_attn=True,
-                n_threads=os.cpu_count() or 4,
-                n_gpu_layers=0,
                 verbose=False
             )
-            print(f"[*] Success: TurboQuant Mode Enabled.")
-            current_mode = "TurboQuant (8-bit KV)"
-            current_ctx  = n_ctx_target
+            current_mode = "Truly Quantized (GPU Accelerated)"
+            current_ctx  = 8192
+            print(f"🚀 TURBOQUANT GPU MODE ACTIVE: Using RTX 3050 with 8-bit KV Cache")
         except Exception as e:
-            print(f"[!] Hardware check failed: {e}")
-            print(f"[*] Switching to Universal Safe Mode (F16 KV + 4k Context)...")
-            LLM = Llama(
-                model_path=MODEL_PATH,
-                n_ctx=4096,
-                n_threads=os.cpu_count() or 4,
-                n_gpu_layers=0,
-                verbose=False
-            )
-            current_mode = "Universal Safe Mode (F16)"
-            current_ctx  = 4096
+            print(f"⚠️ GPU Initialization failed, falling back to CPU: {e}")
+            try:
+                LLM = Llama(
+                    model_path=MODEL_PATH,
+                    n_ctx=4096,
+                    n_gpu_layers=0,
+                    verbose=False
+                )
+                current_mode = "Universal Safe Mode (CPU)"
+                current_ctx  = 4096
+                print("Using Universal Safe Mode (CPU Fallback)")
+            except Exception as e2:
+                print(f"CRITICAL ERROR: Could not load model in any mode: {e2}")
         
-        print(f"--------------------------------------------------")
-        print(f"  Ready: {current_mode}")
         print(f"  Context: {current_ctx} tokens")
         print(f"--------------------------------------------------")
     except Exception as e:
