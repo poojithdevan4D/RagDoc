@@ -1,171 +1,69 @@
-# 🚀 TurboQuant Offline Checklist Generator
+# 🚀 TurboQuant Offline Checklist Generator (V3)
 
-A high-performance, private, and local AI tool for generating audit checklists from massive regulatory PDFs. Powered by a custom-tuned **TurboQuant** engine for maximum speed and long-context analysis on standard CPUs.
+A high-performance, private, and local AI tool for generating audit checklists from massive regulatory PDFs. Powered by a custom-tuned **TurboQuant** engine for maximum speed and long-context analysis.
 
 ## ⚡ Why TurboQuant?
 This version features a custom-built `llama-cpp-python` engine optimized for:
 *   **300% Speedup**: Batched "Turbo Mode" processes multiple clauses simultaneously.
-*   **Truly Quantized Memory**: 8-bit KV Cache allows for **8,192 token** context windows on 16GB RAM.
-*   **Hardware Agile**: Automatically detects your CPU (AVX2/Flash Attention) and falls back to a stable mode if needed.
+*   **Truly Quantized Memory**: 8-bit KV Cache allows for **8,192 token** context windows on standard hardware.
+*   **Hardware Agile**: Automatically detects your hardware (AVX2/CUDA/Flash Attention) and uses the best mode.
 *   **100% Offline**: No data ever leaves your machine.
 
 ---
 
-## Requirements
+## 🛠️ One-Click Installation (Windows)
 
-| Dependency | Version |
-|---|---|
-| Python | 3.9+ |
-| [bitnet.cpp](https://github.com/microsoft/bitnet.cpp) | latest |
-| BitNet model | `BitNet-b1.58-2B-4T` (GGUF i2_s) |
-| pdfplumber | `pip install pdfplumber` |
-| python-docx | `pip install python-docx` |
-| flask | `pip install flask` |
+We have simplified the setup process. You no longer need to build complex C++ binaries manually.
 
----
+1.  **Clone the Repo**:
+    ```powershell
+    git clone https://github.com/Arut123/Offline-checklist-generator.git
+    cd Offline-checklist-generator
+    git checkout v3
+    ```
 
-## Installation
+2.  **Run the Setup Script**:
+    Right-click `setup.ps1` and select **"Run with PowerShell"**, or run:
+    ```powershell
+    ./setup.ps1
+    ```
+    *This will automatically create a virtual environment, install the AI engine optimized for your CPU, and set up all dependencies.*
 
-### 1. Build BitNet
-
-Follow the official instructions at https://github.com/microsoft/bitnet.cpp to build the project. After a successful build you will have a binary at a path like:
-
-```
-/path/to/bitnet.cpp/build/bin/llama-cli
-```
-
-### 2. Download the model
-
-Download the `BitNet-b1.58-2B-4T` GGUF model (i2_s quantisation). The model file will be at a path like:
-
-```
-/path/to/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
-```
-
-### 3. Install Python dependencies
-
-```bash
-pip install flask pdfplumber python-docx
-```
-
-### 4. Clone this repo
-
-```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
-cd YOUR_REPO
-```
+3.  **Add your Model**:
+    *   Create a folder named `models` in the root directory.
+    *   Place your `.gguf` model file (e.g., `Mistral-7B-Instruct-v0.3.Q4_K_M.gguf`) inside the `models/` folder.
+    *   The system will automatically detect and load it.
 
 ---
 
-## Configuration
+## 🚀 Running the App
 
-**No paths are hardcoded.** You configure the binary and model via environment variables:
-
-```bash
-export BITNET_CLI=/path/to/bitnet.cpp/build/bin/llama-cli
-export BITNET_MODEL=/path/to/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
+### Option A: Web UI (Recommended)
+```powershell
+.\.venv\Scripts\python server.py
 ```
-
-You can add these to your shell profile (`~/.bashrc`, `~/.zshrc`) so they persist across sessions:
-
-```bash
-echo 'export BITNET_CLI=/path/to/bitnet.cpp/build/bin/llama-cli' >> ~/.bashrc
-echo 'export BITNET_MODEL=/path/to/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf' >> ~/.bashrc
-source ~/.bashrc
-```
-
-Or create a `.env` file in the project directory and source it before running:
-
-```bash
-# .env
-export BITNET_CLI=/path/to/bitnet.cpp/build/bin/llama-cli
-export BITNET_MODEL=/path/to/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf
-```
-
-```bash
-source .env && python3 server.py
-```
-
----
-
-## Running the Web UI
-
-```bash
-python3 server.py
-```
-
 Then open **http://localhost:5000** in your browser.
 
-Optional port/host overrides:
-
-```bash
-HOST=127.0.0.1 PORT=8080 python3 server.py
+### Option B: Command Line
+```powershell
+.\.venv\Scripts\python checklist_generator.py your_document.pdf [max_clauses]
 ```
 
 ---
 
-## Running from the Command Line (no UI)
-
-```bash
-python3 checklist_generator.py your_document.pdf [max_clauses]
-```
-
-Example:
-
-```bash
-python3 checklist_generator.py regulations.pdf 20
-```
-
-This writes two files to the current directory:
-- `Audit_Checklist.docx` — master checklist
-- `Audit_Checklist_filtered.docx` — standard-depth audit sheet
+## 📁 File Structure
+*   `server.py`: The web server (Flask).
+*   `checklist_generator.py`: The core AI engine.
+*   `ui.html`: The modern dashboard.
+*   `setup.ps1`: The auto-installer.
 
 ---
 
-## File Overview
-
-| File | Purpose |
-|---|---|
-| `server.py` | Flask backend — handles PDF upload, streams progress, returns `.docx` files |
-| `checklist_generator.py` | Core logic — PDF reading, clause extraction, BitNet inference, Word output |
-| `ui.html` | Single-file frontend — served by Flask at `/` |
-
-### Optional: Custom fonts
-
-The UI references two optional web fonts via `/static/`:
-- `ibmplexmono.woff2`
-- `ibmplexsans.woff2`
-
-If these are not present, the browser falls back to system monospace/sans-serif fonts and everything works fine. To use the exact fonts, download IBM Plex Mono and IBM Plex Sans from [Google Fonts](https://fonts.google.com) and place the `.woff2` files in a `static/` folder next to `ui.html`.
+## ⚠️ Troubleshooting
+*   **"No model found"**: Ensure your model file is inside the `models/` folder and has a `.gguf` extension.
+*   **"Permission Denied"**: Run PowerShell as Administrator if the script fails to create the virtual environment.
+*   **"CUDA/GPU issues"**: The system defaults to high-speed CPU mode for stability. If you have an NVIDIA GPU, ensure your drivers are up to date.
 
 ---
 
-## Audit Depth Presets
-
-| Preset | Min per clause (N) | % of checkpoints (M) |
-|---|---|---|
-| Light | 1 | 25% |
-| Standard | 2 | 50% |
-| Deep | 3 | 75% |
-| Full | all | 100% |
-
-You can also set N and M manually with the **Custom** option in the UI.
-
----
-
-## Troubleshooting
-
-**"BitNet binary not found"**
-→ Check your `BITNET_CLI` path is correct and the binary is executable (`chmod +x`).
-
-**"Model file not found"**
-→ Check your `BITNET_MODEL` path. Make sure the `.gguf` file was downloaded completely.
-
-**"No clauses found"**
-→ The PDF may be scanned (image-only). The tool requires machine-readable text. Try a text-layer PDF.
-
-**Generation is slow**
-→ BitNet runs on CPU by default. Generation time scales with the number of clauses. Start with a low `Max Clauses` value (e.g. 5–10) to test.
-
-**Port already in use**
-→ Run with `PORT=8080 python3 server.py` or kill the existing process on port 5000.
+**Generated by Antigravity AI**
