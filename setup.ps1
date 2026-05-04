@@ -36,20 +36,18 @@ Info "Installing dependencies..."
 pip install flask pdfplumber python-docx --quiet
 Ok "flask, pdfplumber, python-docx installed"
 
-Info "Installing llama-cpp-python..."
+Info "Installing llama-cpp-python with TurboQuant optimizations..."
+$env:CMAKE_ARGS = "-DGGML_AVX2=ON -DGGML_FLASH_ATTN=ON -DGGML_NATIVE=ON"
 try {
-    pip install llama-cpp-python --quiet
-    Ok "llama-cpp-python installed"
+    pip install llama-cpp-python --no-cache-dir --upgrade
+    Ok "llama-cpp-python (TurboQuant version) installed"
 } catch {
-    Info "Trying source build (requires Visual C++ Build Tools)..."
-    pip install llama-cpp-python --no-cache-dir
-    Ok "llama-cpp-python installed from source"
+    Fail "Could not build TurboQuant engine. Ensure you have 'Visual Studio C++ Build Tools' installed."
 }
 
 # ── Model ─────────────────────────────────────────────────────
 if (-not (Test-Path "models")) { New-Item -ItemType Directory -Path "models" | Out-Null }
-$modelFile = "models\mistral-7b-instruct-v0.2.Q4_K_M.gguf"
-$modelUrl  = "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+$modelUrl  = "https://huggingface.co/MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf"
 
 if (Test-Path $modelFile) {
     Ok "Model already present: $modelFile"

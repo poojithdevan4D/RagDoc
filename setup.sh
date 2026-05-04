@@ -37,18 +37,15 @@ info "Installing dependencies..."
 pip install flask pdfplumber python-docx --quiet
 ok "flask, pdfplumber, python-docx installed"
 
-info "Installing llama-cpp-python (may take a few minutes)..."
-pip install llama-cpp-python --quiet || {
-    info "Prebuilt wheel unavailable — building from source..."
-    CMAKE_ARGS="-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS" \
-    pip install llama-cpp-python --no-cache-dir --quiet
-}
+info "Installing llama-cpp-python with TurboQuant optimizations..."
+export CMAKE_ARGS="-DGGML_AVX2=ON -DGGML_FLASH_ATTN=ON -DGGML_NATIVE=ON"
+pip install llama-cpp-python --no-cache-dir --upgrade || fail "Could not build TurboQuant engine. Ensure you have build-essential/gcc installed."
+ok "llama-cpp-python (TurboQuant version) installed"
 ok "llama-cpp-python installed"
 
 # ── Model ─────────────────────────────────────────────────────
 mkdir -p models
-MODEL_FILE="models/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
-MODEL_URL="https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+MODEL_URL="https://huggingface.co/MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf"
 
 if [ -f "$MODEL_FILE" ]; then
     ok "Model already present: $MODEL_FILE"
