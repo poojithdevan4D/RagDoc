@@ -69,9 +69,9 @@ if MODEL_PATH:
             )
             current_mode = "Truly Quantized (GPU Accelerated)"
             current_ctx  = 8192
-            print(f"🚀 TURBOQUANT GPU MODE ACTIVE: Using RTX 3050 with 8-bit KV Cache")
+            print(f"TURBOQUANT GPU MODE ACTIVE: Using RTX 3050 with 8-bit KV Cache")
         except Exception as e:
-            print(f"⚠️ GPU Initialization failed, falling back to CPU: {e}")
+            print(f"GPU Initialization failed, falling back to CPU: {e}")
             try:
                 LLM = Llama(
                     model_path=MODEL_PATH,
