@@ -2,22 +2,25 @@ import os
 import sys
 
 def verify():
-    print("\n🔍 TurboQuant Team Setup Verification\n" + "="*40)
+    # Get the directory where the script is located
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    print("\n--- TurboQuant Team Setup Verification ---\n" + "="*40)
     
     # 1. Python Check
     print(f"[*] Python Version: {sys.version.split()[0]}", end=" ")
     if sys.version_info >= (3, 10):
-        print("✅")
+        print("OK")
     else:
-        print("❌ (Requires 3.10+)")
+        print("ERROR (Requires 3.10+)")
 
     # 2. Virtual Env Check
-    venv_path = os.path.join(os.getcwd(), ".venv")
-    print(f"[*] Virtual Env: {venv_path}", end=" ")
+    venv_path = os.path.join(base_dir, ".venv")
+    print(f"[*] Virtual Env: .venv", end=" ")
     if os.path.isdir(venv_path):
-        print("✅")
+        print("OK")
     else:
-        print("❌ (Run setup.ps1 first)")
+        print("ERROR (Missing .venv in project folder)")
 
     # 3. Dependencies Check
     try:
@@ -25,31 +28,38 @@ def verify():
         import pdfplumber
         import docx
         import llama_cpp
-        print("[*] Dependencies: ✅ (Found all core libraries)")
+        import numpy
+        print("[*] Dependencies: OK (Found all core libraries)")
     except ImportError as e:
-        print(f"[*] Dependencies: ❌ (Missing: {e.name})")
+        print(f"[*] Dependencies: ERROR (Missing: {e.name})")
 
     # 4. Model Check
-    models_dir = os.path.join(os.getcwd(), "models")
-    print(f"[*] Models Directory: {models_dir}", end=" ")
+    models_dir = os.path.join(base_dir, "models")
+    print(f"[*] Models Directory: models/", end=" ")
     if os.path.isdir(models_dir):
-        print("✅")
+        print("OK")
         gguf_files = [f for f in os.listdir(models_dir) if f.endswith(".gguf")]
         if gguf_files:
-            print(f"    - Found model: {gguf_files[0]} ✅")
+            print(f"    - Found model: {gguf_files[0]} OK")
         else:
-            print("    - ❌ No .gguf files found in models/ folder!")
+            print("    - ERROR: No .gguf files found in models/ folder!")
     else:
-        print("❌ (Directory missing!)")
+        print("ERROR (Directory missing!)")
 
-    # 5. TurboQuant Build Check
+    # 5. AI Engine & Hardware Acceleration
     try:
-        from llama_cpp import llama_supports_gpu_offload
-        # Check for AVX2 support via llama.cpp
-        print("[*] AI Engine Optimization: ✅ (Native Build Detected)")
-    except:
-        print("[*] AI Engine Optimization: ❌ (Basic build or missing)")
+        import llama_cpp
+        gpu_support = llama_cpp.llama_supports_gpu_offload()
+        print(f"[*] Hardware Acceleration: ", end="")
+        if gpu_support:
+            print("GPU (CUDA) Enabled")
+        else:
+            print("CPU Optimized Mode")
+    except Exception as e:
+        print(f"[*] AI Engine Status: ERROR (Error checking engine: {e})")
 
+    print("="*40)
+    print("If all items are OK, you are ready to run: python server.py")
     print("="*40 + "\n")
 
 if __name__ == "__main__":

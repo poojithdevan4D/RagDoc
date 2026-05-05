@@ -21,11 +21,21 @@ MAX_ITEMS   = 10
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def _find_model():
+    # 1. Check environment variable first
+    env_model = os.environ.get("BITNET_MODEL")
+    if env_model and os.path.exists(env_model):
+        return env_model
+
+    # 2. Check models/ folder
     models_dir = os.path.join(BASE_DIR, "models")
-    if os.path.isdir(models_dir):
-        for f in sorted(os.listdir(models_dir)):
-            if f.endswith(".gguf"):
-                return os.path.join(models_dir, f)
+    if not os.path.isdir(models_dir):
+        try: os.makedirs(models_dir)
+        except: pass
+        return None
+
+    for f in sorted(os.listdir(models_dir)):
+        if f.endswith(".gguf"):
+            return os.path.join(models_dir, f)
     return None
 
 MODEL_PATH = _find_model() or os.environ.get("BITNET_MODEL", "")
