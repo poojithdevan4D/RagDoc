@@ -44,7 +44,7 @@ Then open **http://localhost:5000** in your browser. Drag and drop any PDF into 
 
 ## 📁 File Structure
 * `server.py`: The web server (Flask).
-* `checklist_generator.py`: The core LLM engine and PDF extraction logic.
+* `document_summarizer.py`: The core LLM engine and PDF extraction logic.
 * `ui.html`: The modern dashboard frontend.
 * `setup.ps1`: The auto-installer.
 

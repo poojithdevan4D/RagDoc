@@ -212,7 +212,7 @@ def generate():
 
             # 2. Generate summary
             yield from emit({"type": "progress", "pct": 40, "label": "Generating summary..."})
-            from checklist_generator import generate_summary
+            from document_summarizer import generate_summary
             
             summary_text = generate_summary(LLM, pages, focus=auditor_focus)
             
