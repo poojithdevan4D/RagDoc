@@ -98,30 +98,23 @@ SKIP_LINE = re.compile(
 )
 
 # ── BitNet inference ─────────────────────────────────────
-def _run_local_llm(llm, prompt, max_tokens=256, temperature=0.1):
+def _run_local_llm(llm, prompt, max_tokens=256, temperature=0.1, repeat_penalty=1.15):
     """
-    Call the local Llama instance with Llama-3 chat format.
+    Call the local Llama instance.
     """
     if llm is None:
         # Fallback for CLI usage if no LLM is passed
         return ""
 
-    chat_prompt = (
-        "<|begin_of_text|>"
-        "<|start_header_id|>system<|end_header_id|>\n\n"
-        "You are a precise government quality auditor assistant. "
-        "Follow instructions exactly and output only what is asked.<|eot_id|>"
-        "<|start_header_id|>user<|end_header_id|>\n\n"
-        f"{prompt}<|eot_id|>"
-        "<|start_header_id|>assistant<|end_header_id|>\n\n"
-    )
+    chat_prompt = prompt
     
     try:
         output = llm(
             chat_prompt,
             max_tokens=max_tokens,
             temperature=temperature,
-            stop=["<|eot_id|>", "<|end_of_text|>"],
+            repeat_penalty=repeat_penalty,
+            stop=["\n\n", "DOCUMENT:", "---", "<|eot_id|>"],
             echo=False
         )
         return output['choices'][0]['text'].strip()
@@ -147,18 +140,24 @@ def load_model(model_path):
             flash_attn=True,
             n_threads=os.cpu_count() or 4,
             n_gpu_layers=-1,
-            verbose=False
+            verbose=True
         )
         print(f"   Success: TurboQuant Mode Enabled (8-bit KV + 8k Context).")
         return llm
     except Exception as e:
         print(f"   Hardware/Build check failed: {e}")
-        print(f"   Switching to Universal Safe Mode (F16 KV + 4k Context).")
+        print(f"   Switching to Universal Safe Mode (CPU Optimized).")
+        physical_threads = max(1, (os.cpu_count() or 4) // 2)
         return Llama(
             model_path=model_path, 
             n_ctx=4096, 
+            type_k=llama_cpp.GGML_TYPE_Q8_0,
+            type_v=llama_cpp.GGML_TYPE_Q8_0,
+            n_batch=512,
+            flash_attn=False,
+            n_threads=physical_threads,
             n_gpu_layers=0, 
-            verbose=False
+            verbose=True
         )
 
 def read_pdf(path):
@@ -166,9 +165,9 @@ def read_pdf(path):
     try:
         import pdfplumber
     except ImportError:
-        sys.exit("ERROR: pip install pdfplumber")
+        raise ImportError("ERROR: pip install pdfplumber")
     if not os.path.exists(path):
-        sys.exit(f"ERROR: File not found - {path}")
+        raise FileNotFoundError(f"ERROR: File not found - {path}")
     pages = []; scanned = 0
     with pdfplumber.open(path) as pdf:
         for pg in pdf.pages:
@@ -184,7 +183,7 @@ def read_pdf(path):
     readable = sum(1 for p in pages if p)
     print(f"   {len(pages)} pages total — {readable} machine-readable, {scanned} scanned/empty (skipped).")
     if readable == 0:
-        sys.exit("ERROR: No readable text. PDF appears fully scanned.")
+        raise ValueError("ERROR: No readable text. PDF appears fully scanned.")
     return pages
 
 # ── Step 2: Detect structure ─────────────────────────────
@@ -397,13 +396,50 @@ def extract_clauses(pages, clause_re, section_re, section_filter=None):
 
 
 
-# ── Step 6: Extract checkpoints ──────────────────────────
-DEFAULT_CHECKPOINT_PROMPT = (
-    "Read the following clause from a government regulatory document.\n"
-    "List every auditable requirement as a numbered YES/NO question (max 15 words each).\n"
-    "Output ONLY the numbered list. No intro, no explanation.{focus}\n\n"
-    "CLAUSE:\n{text}"
+SUMMARY_PROMPT = (
+    "DOCUMENT TEXT:\n"
+    "--------------------\n"
+    "{text}\n"
+    "--------------------\n\n"
+    "A concise, 3-sentence summary of the document above{focus}:\n"
 )
+
+def generate_summary(llm, pages, focus=""):
+    focus_str = f"\nFocus: {focus.strip()}" if focus and focus.strip() else ""
+    
+    chunks = []
+    current_chunk = ""
+    for p in pages:
+        if len(current_chunk) + len(p) > 24000 and current_chunk:
+            chunks.append(current_chunk)
+            current_chunk = p
+        else:
+            current_chunk += "\n\n" + p
+    if current_chunk:
+        chunks.append(current_chunk)
+        
+    chunk_summaries = []
+    for chunk in chunks:
+        prompt = SUMMARY_PROMPT.format(text=chunk, focus=focus_str)
+        raw = _run_local_llm(llm, prompt, max_tokens=150, temperature=0.3, repeat_penalty=1.15)
+        if raw:
+            chunk_summaries.append(raw.strip())
+            
+    if not chunk_summaries:
+        return ""
+        
+    if len(chunk_summaries) == 1:
+        return chunk_summaries[0]
+        
+    final_combined = "\n\n---\n\n".join(chunk_summaries)
+    if len(final_combined) > 24000:
+        final_combined = final_combined[:24000] + "\n...[TRUNCATED]"
+        
+    final_prompt = SUMMARY_PROMPT.format(text="Combine these summaries into one final cohesive summary:\n" + final_combined, focus=focus_str)
+    final_raw = _run_local_llm(llm, final_prompt, max_tokens=150, temperature=0.3, repeat_penalty=1.15)
+    return final_raw.strip()
+
+DEFAULT_CHECKPOINT_PROMPT = SUMMARY_PROMPT
 
 def extract_checkpoints(llm, clause, prompt_template=None, focus=""):
     template  = prompt_template if prompt_template else DEFAULT_CHECKPOINT_PROMPT

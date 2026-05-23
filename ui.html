@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audit Checklist Generator</title>
+<title>Document Summarizer</title>
 <style>
 @font-face {
   font-family: 'IBM Plex Mono';
@@ -185,54 +185,6 @@ input[type=number], input[type=text] {
 }
 input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); }
 
-/* ── Depth control ── */
-.depth-section {
-  margin-bottom: 1.25rem;
-}
-.depth-label-row {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-.depth-presets {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem;
-  margin-bottom: 0.75rem;
-}
-.preset-btn {
-  padding: 0.5rem 0.3rem;
-  background: var(--navy2);
-  border: 1px solid var(--navy3);
-  border-radius: 3px;
-  color: var(--muted);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: center;
-}
-.preset-btn:hover { border-color: var(--accent); color: var(--accent); }
-.preset-btn.active {
-  background: var(--navy3);
-  border-color: var(--accent);
-  color: var(--accent2);
-}
-
-.preset-desc {
-  font-size: 0.72rem;
-  color: var(--muted);
-  margin-bottom: 0.75rem;
-  font-family: 'IBM Plex Mono', monospace;
-  min-height: 1.1rem;
-}
-
-.custom-row {
-  display: none;
-  gap: 1rem;
-  align-items: flex-end;
-}
-.custom-row.visible { display: flex; }
-
 /* ── Generate button ── */
 .btn-generate {
   width: 100%; padding: 0.85rem;
@@ -258,7 +210,7 @@ input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); 
 /* ── Log box ── */
 .log-box {
   background: var(--navy2); border: 1px solid var(--navy3);
-  border-radius: 4px; padding: 1rem; height: 260px;
+  border-radius: 4px; padding: 1rem; height: 180px;
   overflow-y: auto; font-family: 'IBM Plex Mono', monospace;
   font-size: 0.71rem; line-height: 1.7; color: var(--muted);
   margin-bottom: 1.25rem; scroll-behavior: smooth;
@@ -300,50 +252,6 @@ input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); 
   color: #4caf82; margin-bottom: 0.75rem;
 }
 
-.stats-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem; margin-bottom: 1rem;
-}
-.stat {
-  background: rgba(255,255,255,0.03);
-  border-radius: 3px; padding: 0.55rem 0.75rem;
-}
-.stat-val {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 1.15rem; font-weight: 500; color: var(--white);
-}
-.stat-lbl { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
-
-.download-row { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem; }
-
-.btn-download {
-  width: 100%; padding: 0.72rem;
-  border: none; border-radius: 3px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.76rem; font-weight: 500;
-  letter-spacing: 0.08em; text-transform: uppercase;
-  cursor: pointer; transition: all 0.15s;
-  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-  text-decoration: none;
-}
-.btn-master   { background: var(--green);  color: #fff; }
-.btn-master:hover   { background: #379163; transform: translateY(-1px); }
-.btn-filtered { background: var(--navy3);  color: var(--white); border: 1px solid var(--steel); }
-.btn-filtered:hover { background: var(--steel); transform: translateY(-1px); }
-
-.depth-badge {
-  display: inline-block;
-  background: rgba(232,160,32,0.15);
-  border: 1px solid var(--amber);
-  border-radius: 3px;
-  padding: 0.2rem 0.5rem;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.66rem;
-  color: var(--accent2);
-  letter-spacing: 0.06em;
-  margin-bottom: 0.5rem;
-}
-
 /* ── Error ── */
 .error-card {
   display: none; background: rgba(155,35,53,0.1);
@@ -353,109 +261,6 @@ input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); 
 }
 .error-card.visible { display: block; }
 
-/* ── How it works ── */
-.how-it-works {
-  border-top: 1px solid var(--navy2); padding-top: 1.25rem; margin-top: 0.5rem;
-}
-.how-it-works h4 {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.63rem; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 0.9rem;
-}
-.steps { display: flex; flex-direction: column; gap: 0.55rem; }
-.step { display: flex; gap: 0.75rem; align-items: flex-start; }
-.step-num {
-  width: 20px; height: 20px; background: var(--navy2);
-  border: 1px solid var(--navy3); border-radius: 50%;
-  font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--accent); flex-shrink: 0; margin-top: 1px;
-}
-.step-text { font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
-.step-text strong { color: var(--light); font-weight: 500; }
-
-/* ── Prompt editor ── */
-.prompt-section { margin-bottom: 1.25rem; }
-.prompt-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 0.4rem;
-}
-.prompt-toggle {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.68rem; color: var(--accent);
-  background: none; border: none; cursor: pointer;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 0; transition: color 0.15s;
-}
-.prompt-toggle:hover { color: var(--accent2); }
-.prompt-body { display: none; }
-.prompt-body.visible { display: block; }
-.prompt-textarea {
-  width: 100%; background: var(--navy2);
-  border: 1px solid var(--navy3); border-radius: 3px;
-  color: var(--light); font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.7rem; line-height: 1.6;
-  padding: 0.75rem; resize: vertical; min-height: 180px;
-  outline: none; transition: border-color 0.15s;
-  margin-bottom: 0.5rem;
-}
-.prompt-textarea:focus { border-color: var(--accent); }
-.prompt-note {
-  font-size: 0.7rem; color: var(--muted); line-height: 1.5;
-  margin-bottom: 0.5rem;
-}
-.prompt-note code {
-  font-family: 'IBM Plex Mono', monospace;
-  background: rgba(255,255,255,0.06);
-  padding: 0.1rem 0.3rem; border-radius: 2px;
-  color: var(--accent2); font-size: 0.68rem;
-}
-.focus-input {
-  background: var(--navy2); border: 1px solid var(--navy3);
-  border-radius: 3px; color: var(--white);
-  font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem;
-  padding: 0.55rem 0.75rem; width: 100%; outline: none;
-  transition: border-color 0.15s; margin-bottom: 0.5rem;
-}
-.focus-input:focus { border-color: var(--accent); }
-.btn-reset-prompt {
-  font-family: 'IBM Plex Mono', monospace; font-size: 0.66rem;
-  color: var(--muted); background: none; border: none;
-  cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 0; transition: color 0.15s;
-}
-.btn-reset-prompt:hover { color: var(--accent); }
-
-/* ── Percentage slider ── */
-.pct-slider-row {
-  margin-bottom: 1.25rem;
-}
-.pct-slider-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 0.4rem;
-}
-.pct-value-badge {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.75rem; color: var(--accent2);
-  background: rgba(232,160,32,0.12);
-  border: 1px solid var(--amber);
-  border-radius: 3px; padding: 0.1rem 0.45rem;
-}
-input[type=range] {
-  width: 100%; accent-color: var(--accent);
-  height: 4px; cursor: pointer;
-  -webkit-appearance: none; appearance: none;
-  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--fill,50%), var(--navy2) var(--fill,50%), var(--navy2) 100%);
-  border-radius: 2px; outline: none;
-}
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 14px; height: 14px;
-  border-radius: 50%; background: var(--accent); cursor: pointer;
-  border: 2px solid var(--navy);
-}
-.pct-ticks {
-  display: flex; justify-content: space-between;
-  font-family: 'IBM Plex Mono', monospace;
 @media (max-width: 720px) {
   main { grid-template-columns: 1fr; }
   .panel-left { padding-right: 0; border-right: none; border-bottom: 1px solid var(--navy2); padding-bottom: 2rem; margin-bottom: 2rem; }
@@ -467,7 +272,7 @@ input[type=range]::-webkit-slider-thumb {
 
 <header>
   <div class="logo-mark"></div>
-  <h1>Audit Checklist Generator</h1>
+  <h1>Document Summarizer</h1>
   <span class="header-tag">DGAQA · OFFLINE LLM · TurboQuant Enabled</span>
 </header>
 
@@ -475,8 +280,8 @@ input[type=range]::-webkit-slider-thumb {
   <!-- LEFT PANEL -->
   <div class="panel-left">
     <div class="section-label">Document Input</div>
-    <h2>Generate a <strong>master audit checklist</strong> from any regulatory document</h2>
-    <p class="subtitle">Upload a government standards or regulatory PDF. The system extracts every distinct auditable requirement, then generates a filtered audit sheet based on your chosen depth.</p>
+    <h2>Generate a <strong>comprehensive summary</strong> from any regulatory document</h2>
+    <p class="subtitle">Upload a government standards or regulatory PDF. The system extracts the main clauses and generates a concise summary of the regulatory requirements.</p>
 
     <!-- Drop zone -->
     <div class="dropzone" id="dropzone">
@@ -495,124 +300,17 @@ input[type=range]::-webkit-slider-thumb {
       <button class="remove-btn" id="removeFile">✕</button>
     </div>
 
-    <!-- Basic options -->
+    <!-- Options row -->
     <div class="options-row">
       <div class="field">
-        <label for="maxItems">Max Clauses</label>
-        <input type="number" id="maxItems" value="10" min="1" max="500" />
+        <label for="auditorFocus">Focus / Specific instructions (optional)</label>
+        <input type="text" id="auditorFocus" placeholder="e.g. Focus on quality documentation..." />
       </div>
-      <div class="field">
-        <label for="docTitle">Document Title <span style="color:var(--navy3)">(optional)</span></label>
-        <input type="text" id="docTitle" placeholder="Auto-detected from filename" />
-      </div>
-    </div>
-
-    <!-- Audit depth -->
-    <div class="depth-section">
-      <div class="depth-label-row">
-        <label style="margin:0">Audit Depth</label>
-      </div>
-
-      <div class="depth-presets">
-        <button class="preset-btn" data-depth="light">Light</button>
-        <button class="preset-btn active" data-depth="standard">Standard</button>
-        <button class="preset-btn" data-depth="deep">Deep</button>
-        <button class="preset-btn" data-depth="full">Full</button>
-      </div>
-
-      <div class="preset-desc" id="presetDesc">N=2 per clause, 50% coverage — balanced audit</div>
-
-      <!-- Custom toggle -->
-      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">
-        <input type="checkbox" id="customToggle" style="accent-color:var(--accent);cursor:pointer;" />
-        <label for="customToggle" style="margin:0;cursor:pointer;color:var(--light);font-size:0.78rem;text-transform:none;letter-spacing:0;">
-          Custom (set N and M% manually)
-        </label>
-      </div>
-
-      <div class="custom-row" id="customRow">
-        <div class="field">
-          <label>Min checkpoints per clause (N)</label>
-          <input type="number" id="customN" value="2" min="1" max="20" />
-        </div>
-        <div class="field">
-          <label>Coverage per clause (M%)</label>
-          <input type="number" id="customM" value="50" min="1" max="100" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Percentage slider (applies on top of depth preset) -->
-    <div class="pct-slider-row">
-      <div class="pct-slider-header">
-        <label style="margin:0">Checkpoint Coverage Override</label>
-        <span class="pct-value-badge" id="pctValueBadge">50%</span>
-      </div>
-      <p class="section-filter-note" style="margin-bottom:0.5rem;">
-        Overrides the M% of the selected depth. Rounds to nearest integer per clause.
-        Move slider to change; <code>—</code> means use preset default.
-      </p>
-      <input type="range" id="pctSlider" min="1" max="100" value="50"
-             style="--fill:50%" oninput="onPctSlider(this)" />
-      <div class="pct-ticks">
-        <span>1%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.55rem;">
-        <input type="checkbox" id="pctOverrideToggle" style="accent-color:var(--accent);cursor:pointer;" />
-        <label for="pctOverrideToggle" style="margin:0;cursor:pointer;color:var(--light);font-size:0.78rem;text-transform:none;letter-spacing:0;">
-          Enable percentage override
-        </label>
-      </div>
-    </div>
-
-    <!-- Section filter -->
-    <div class="section-filter-section">
-      <label style="margin-bottom:0.35rem;display:block">Section / Clause Filter <span style="color:var(--navy3)">(optional)</span></label>
-      <p class="section-filter-note">
-        Restrict extraction to specific sections. Comma-separated clause prefixes or identifiers
-        from the document, e.g. <code>21 C1, 21.B2</code> or <code>Subpart-B</code>.
-        Matching is substring — <code>21 C1</code> will match <code>21-C1/21.C1.4</code> etc.
-        Leave blank to process the entire document.
-      </p>
-      <input type="text" class="section-filter-input" id="sectionFilter"
-             placeholder="e.g. 21 C1, 21 C2, Subpart-B  (blank = whole document)" />
-    </div>
-
-    <!-- Prompt editor -->
-    <div class="prompt-section">
-      <div class="prompt-header">
-        <label style="margin:0">LLM Extraction Prompt</label>
-        <button class="prompt-toggle" id="promptToggle">▶ Edit Prompt</button>
-      </div>
-      <div class="prompt-body" id="promptBody">
-        <p class="prompt-note">
-          This is the prompt sent to the LLM for each clause. Edit it to focus the
-          extraction on specific requirements. Keep <code>{text}</code> and
-          <code>{focus}</code> placeholders in place.
-        </p>
-        <textarea class="prompt-textarea" id="promptTextarea" spellcheck="false"></textarea>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-          <label style="margin:0;font-size:0.72rem;color:var(--light);text-transform:none;letter-spacing:0;">
-            Auditor Focus <span style="color:var(--muted)">(optional — appended to prompt)</span>
-          </label>
-          <button class="btn-reset-prompt" id="resetPrompt">↺ Reset to default</button>
-        </div>
-        <input type="text" class="focus-input" id="auditorFocus"
-               placeholder="e.g. Focus on quality documentation and design approval requirements" />
-      </div>
-    </div>
-
-    <!-- Turbo Mode Toggle -->
-    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.25rem;background:rgba(232,160,32,0.05);padding:0.75rem;border-radius:4px;border:1px solid rgba(232,160,32,0.2);">
-      <input type="checkbox" id="turboMode" style="accent-color:var(--accent);cursor:pointer;" checked />
-      <label for="turboMode" style="margin:0;cursor:pointer;color:var(--light);font-size:0.78rem;text-transform:none;letter-spacing:0;">
-        Enable <strong>Turbo Mode</strong> (Faster batched extraction)
-      </label>
     </div>
 
     <button class="btn-generate" id="generateBtn" disabled>
       <div class="spinner"></div>
-      <span class="btn-text">▶ &nbsp; Generate Checklist</span>
+      <span class="btn-text">▶ &nbsp; Generate Summary</span>
     </button>
   </div>
 
@@ -643,77 +341,12 @@ input[type=range]::-webkit-slider-thumb {
     <!-- Result section -->
     <div class="result-section" id="resultSection">
       <div class="result-header">✓ Generation Complete</div>
-
-      <div class="stats-grid">
-        <div class="stat">
-          <div class="stat-val" id="statClauses">—</div>
-          <div class="stat-lbl">Clauses found</div>
-        </div>
-        <div class="stat">
-          <div class="stat-val" id="statMaster">—</div>
-          <div class="stat-lbl">Total checkpoints</div>
-        </div>
-        <div class="stat">
-          <div class="stat-val" id="statFiltered">—</div>
-          <div class="stat-lbl">Audit sheet items</div>
-        </div>
-      </div>
-
-      <div class="depth-badge" id="depthBadge">STANDARD — N=2, M=50%</div>
-
-      <div class="download-row">
-        <a class="btn-download btn-master" id="masterBtn" href="#" download>
-          ↓ &nbsp; Download Master Checklist (all checkpoints)
-        </a>
-        <a class="btn-download btn-filtered" id="filteredBtn" href="#" download>
-          ↓ &nbsp; Download Audit Sheet (filtered by depth)
-        </a>
-      </div>
-    </div>
-
-    <!-- How it works -->
-    <div class="how-it-works">
-      <h4>How it works</h4>
-      <div class="steps">
-        <div class="step">
-          <div class="step-num">1</div>
-          <div class="step-text"><strong>Structure Detection</strong> — LLM identifies section headers and clause numbering format</div>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <div class="step-text"><strong>Clause Extraction</strong> — All obligation clauses parsed directly from the PDF</div>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <div class="step-text"><strong>Checkpoint Extraction</strong> — Every distinct auditable requirement within each clause becomes a separate checklist row</div>
-        </div>
-        <div class="step">
-          <div class="step-num">4</div>
-          <div class="step-text"><strong>Master Checklist</strong> — Word document with all checkpoints, subpoint refs (e.g. 2.1 — 3/6)</div>
-        </div>
-        <div class="step">
-          <div class="step-num">5</div>
-          <div class="step-text"><strong>Audit Sheet</strong> — Filtered subset based on depth: N min checkpoints or M% per clause, whichever is less</div>
-        </div>
-      </div>
+      <div id="summaryOutput" style="background: rgba(255,255,255,0.03); border: 1px solid #1f4e79; border-radius: 4px; padding: 1.2rem; font-family: 'IBM Plex Sans', sans-serif; font-size: 0.9rem; line-height: 1.6; color: #f5f8fb; white-space: pre-wrap; margin-bottom: 1.25rem;"></div>
     </div>
   </div>
 </main>
 
 <script>
-// ── State ──
-let selectedFile = null;
-let masterUrl    = null;
-let filteredUrl  = null;
-let activeDepth  = 'standard';
-
-const PRESET_DESCS = {
-  light:    'N=1 per clause, min 25% coverage — quick surface audit',
-  standard: 'N=2 per clause, min 50% coverage — balanced audit',
-  deep:     'N=3 per clause, min 75% coverage — thorough audit',
-  full:     'All checkpoints, 100% coverage — exhaustive audit',
-};
-
 // ── Elements ──
 const dropzone    = document.getElementById('dropzone');
 const fileInput   = document.getElementById('fileInput');
@@ -730,53 +363,8 @@ const progressLabel=document.getElementById('progressLabel');
 const progressPct = document.getElementById('progressPct');
 const resultSection=document.getElementById('resultSection');
 const errorCard   = document.getElementById('errorCard');
-const masterBtn   = document.getElementById('masterBtn');
-const filteredBtn = document.getElementById('filteredBtn');
-const customToggle= document.getElementById('customToggle');
-const customRow   = document.getElementById('customRow');
-const presetDesc  = document.getElementById('presetDesc');
 
-// ── Percentage slider ──
-function onPctSlider(el) {
-  const v = el.value;
-  el.style.setProperty('--fill', v + '%');
-  document.getElementById('pctValueBadge').textContent = v + '%';
-}
-
-document.getElementById('pctOverrideToggle').addEventListener('change', function() {
-  const slider = document.getElementById('pctSlider');
-  const badge  = document.getElementById('pctValueBadge');
-  slider.disabled = !this.checked;
-  badge.style.opacity = this.checked ? '1' : '0.35';
-  badge.textContent   = this.checked ? slider.value + '%' : '—';
-});
-// Init — disable slider until toggled on
-(function() {
-  const slider = document.getElementById('pctSlider');
-  slider.disabled = true;
-  document.getElementById('pctValueBadge').style.opacity = '0.35';
-  document.getElementById('pctValueBadge').textContent = '—';
-})();
-document.querySelectorAll('.preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (customToggle.checked) return;
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeDepth = btn.dataset.depth;
-    presetDesc.textContent = PRESET_DESCS[activeDepth];
-  });
-});
-
-customToggle.addEventListener('change', () => {
-  customRow.classList.toggle('visible', customToggle.checked);
-  if (customToggle.checked) {
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    presetDesc.textContent = 'Manual N and M% — you control the depth';
-  } else {
-    document.querySelector(`.preset-btn[data-depth="${activeDepth}"]`).classList.add('active');
-    presetDesc.textContent = PRESET_DESCS[activeDepth];
-  }
-});
+let selectedFile = null;
 
 // ── File handling ──
 function formatBytes(b) {
@@ -796,8 +384,6 @@ function setFile(file) {
   generateBtn.disabled = false;
   errorCard.classList.remove('visible');
   resultSection.classList.remove('visible');
-  if (!document.getElementById('docTitle').value)
-    document.getElementById('docTitle').value = file.name.replace('.pdf','').replace(/[_-]/g,' ');
 }
 
 fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
@@ -811,7 +397,6 @@ removeFile.addEventListener('click', () => {
   selectedFile = null; fileInput.value = '';
   dropzone.style.display = ''; fileSelected.style.display = 'none';
   generateBtn.disabled = true;
-  document.getElementById('docTitle').value = '';
   resultSection.classList.remove('visible');
   errorCard.classList.remove('visible');
 });
@@ -846,43 +431,6 @@ function showError(msg) {
   resultSection.classList.remove('visible');
 }
 
-function b64toBlob(b64, mime) {
-  const bytes = atob(b64);
-  const arr   = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-  return new Blob([arr], { type: mime });
-}
-
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
-// ── Prompt editor ──
-let defaultPromptText = "";
-
-async function loadDefaultPrompt() {
-  try {
-    const r = await fetch('/default_prompt');
-    defaultPromptText = await r.text();
-    document.getElementById('promptTextarea').value = defaultPromptText;
-  } catch(e) {
-    // Server not ready yet or offline — set a sensible fallback
-    document.getElementById('promptTextarea').value =
-      "[INST] You are a government quality auditor.\n\nIdentify EVERY distinct auditable requirement in the clause below.\nWrite each as a YES/NO audit question (max 15 words).\nNumber them. Output ONLY the numbered list.{focus}\n\nCLAUSE TEXT:\n{text}\n[/INST]";
-  }
-}
-loadDefaultPrompt();
-
-document.getElementById('promptToggle').addEventListener('click', () => {
-  const body   = document.getElementById('promptBody');
-  const toggle = document.getElementById('promptToggle');
-  const open   = body.classList.toggle('visible');
-  toggle.textContent = open ? '▼ Hide Prompt' : '▶ Edit Prompt';
-});
-
-document.getElementById('resetPrompt').addEventListener('click', () => {
-  document.getElementById('promptTextarea').value = defaultPromptText;
-  document.getElementById('auditorFocus').value = '';
-});
-
 // ── Generate ──
 generateBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
@@ -899,40 +447,10 @@ generateBtn.addEventListener('click', async () => {
   addLog(`Uploading: ${selectedFile.name}`, 'info');
 
   const formData = new FormData();
-  formData.append('pdf',       selectedFile);
-  formData.append('max_items', document.getElementById('maxItems').value);
-  formData.append('doc_title', document.getElementById('docTitle').value);
-  formData.append('turbo_mode', document.getElementById('turboMode').checked);
-
-  if (customToggle.checked) {
-    formData.append('depth',    'custom');
-    formData.append('custom_n', document.getElementById('customN').value);
-    formData.append('custom_m', document.getElementById('customM').value);
-  } else {
-    formData.append('depth', activeDepth);
-  }
-
-  // Always send current prompt (may have been edited by auditor)
-  const promptVal = document.getElementById('promptTextarea').value.trim();
-  const focusVal  = document.getElementById('auditorFocus').value.trim();
-  if (promptVal && promptVal !== defaultPromptText) {
-    formData.append('prompt_template', promptVal);
-  }
+  formData.append('pdf', selectedFile);
+  const focusVal = document.getElementById('auditorFocus').value.trim();
   if (focusVal) {
     formData.append('auditor_focus', focusVal);
-  }
-
-  // Section filter
-  const sectionFilterVal = document.getElementById('sectionFilter').value.trim();
-  if (sectionFilterVal) {
-    formData.append('section_filter', sectionFilterVal);
-  }
-
-  // Percentage override slider
-  const pctToggle = document.getElementById('pctOverrideToggle');
-  if (pctToggle.checked) {
-    const pctVal = document.getElementById('pctSlider').value;
-    formData.append('custom_pct', pctVal);
   }
 
   try {
@@ -949,8 +467,6 @@ generateBtn.addEventListener('click', async () => {
     const decoder = new TextDecoder();
     let buffer    = '';
     let finalData = null;
-    let masterB64 = null;
-    let filteredB64 = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -965,8 +481,6 @@ generateBtn.addEventListener('click', async () => {
           const msg = JSON.parse(line);
           if (msg.type === 'log')           addLog(msg.text, msg.level || 'info');
           else if (msg.type === 'progress') setProgress(msg.pct, msg.label);
-          else if (msg.type === 'master_file')   masterB64 = msg.data;
-          else if (msg.type === 'filtered_file') filteredB64 = msg.data;
           else if (msg.type === 'done')     finalData = msg;
           else if (msg.type === 'error')    throw new Error(msg.text);
         } catch(e) {
@@ -980,27 +494,9 @@ generateBtn.addEventListener('click', async () => {
 
     // ── Success ──
     setProgress(100, 'Complete');
-    addLog(`✓ Master: ${finalData.master_items} checkpoints across ${finalData.total_clauses} clauses`, 'ok');
-    addLog(`✓ Audit sheet: ${finalData.filtered_items} items (${finalData.depth_label})`, 'ok');
+    addLog(`✓ Summary generated successfully`, 'ok');
 
-    if (masterUrl)   URL.revokeObjectURL(masterUrl);
-    if (filteredUrl) URL.revokeObjectURL(filteredUrl);
-
-    masterUrl   = URL.createObjectURL(b64toBlob(masterB64,   DOCX_MIME));
-    filteredUrl = URL.createObjectURL(b64toBlob(filteredB64, DOCX_MIME));
-
-    const base = selectedFile.name.replace('.pdf','');
-    masterBtn.href     = masterUrl;
-    masterBtn.download = `Master_Checklist_${base}.docx`;
-    filteredBtn.href     = filteredUrl;
-    filteredBtn.download = `Audit_Sheet_${finalData.depth_label}_${base}.docx`;
-
-    document.getElementById('statClauses').textContent  = finalData.total_clauses;
-    document.getElementById('statMaster').textContent   = finalData.master_items;
-    document.getElementById('statFiltered').textContent = finalData.filtered_items;
-    document.getElementById('depthBadge').textContent   =
-      `${finalData.depth_label} — N=${finalData.n_val}, M=${finalData.m_val}%`;
-
+    document.getElementById('summaryOutput').textContent = finalData.summary;
     resultSection.classList.add('visible');
 
   } catch(err) {
