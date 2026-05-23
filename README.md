@@ -1,68 +1,52 @@
-# 🚀 TurboQuant Offline Checklist Generator (V3)
+# 🚀 Offline Document Summarizer (RagDoc)
 
-A high-performance, private, and local AI tool for generating audit checklists from massive regulatory PDFs. Powered by a custom-tuned **TurboQuant** engine for maximum speed and long-context analysis.
+A blazing-fast, 100% offline, privacy-first AI tool for generating ultra-concise summaries from massive PDF documents. Powered by **TurboQuant** and natively optimized for `BitNet 1.58b` local models.
 
-## ⚡ Why TurboQuant?
-This version features a custom-built `llama-cpp-python` engine optimized for:
-*   **300% Speedup**: Batched "Turbo Mode" processes multiple clauses simultaneously.
-*   **Truly Quantized Memory**: 8-bit KV Cache allows for **8,192 token** context windows on standard hardware.
-*   **Hardware Agile**: Automatically detects your hardware (AVX2/CUDA/Flash Attention) and uses the best mode.
-*   **100% Offline**: No data ever leaves your machine.
+## ⚡ Key Features
+* **Lightning Fast:** Generates full 3-sentence summaries in under 10 seconds.
+* **Smart Hardware Fallback:** Automatically runs with TurboQuant 8-bit KV Cache (8k Context) on GPUs, but falls back to a highly-optimized CPU safe-mode (physical core threading, memory bandwidth limits) for laptops without dedicated graphics.
+* **Llama-3 Native:** Specifically calibrated to prompt `BitNet 1.58b` base models without suffering from instruction hallucination.
+* **100% Offline**: No API keys required. No data ever leaves your machine.
 
 ---
 
 ## 🛠️ One-Click Installation (Windows)
 
-We have simplified the setup process. You no longer need to build complex C++ binaries manually.
+1. **Clone the Repo**:
+   ```powershell
+   git clone https://github.com/poojithdevan4D/RagDoc.git
+   cd RagDoc
+   ```
 
-1.  **Clone the Repo**:
-    ```powershell
-    git clone https://github.com/Arut123/Offline-checklist-generator.git
-    cd Offline-checklist-generator
-    git checkout v3
-    ```
+2. **Run the Setup Script**:
+   Right-click `setup.ps1` and select **"Run with PowerShell"**, or run:
+   ```powershell
+   ./setup.ps1
+   ```
+   *This will automatically create a virtual environment, install the AI engine optimized for your hardware, and set up all dependencies.*
 
-2.  **Run the Setup Script**:
-    Right-click `setup.ps1` and select **"Run with PowerShell"**, or run:
-    ```powershell
-    ./setup.ps1
-    ```
-    *This will automatically create a virtual environment, install the AI engine optimized for your CPU, and set up all dependencies.*
-
-3.  **Add your Model**:
-    *   Create a folder named `models` in the root directory.
-    *   Place your `.gguf` model file (e.g., `Mistral-7B-Instruct-v0.3.Q4_K_M.gguf`) inside the `models/` folder.
-    *   The system will automatically detect and load it.
+3. **Add your Model**:
+   * Create a folder named `models` in the root directory.
+   * Place the `ggml-model-i2_s.gguf` (BitNet 1.48b/1.58b) file inside the `models/` folder.
+   * The system will automatically detect and load it.
 
 ---
 
 ## 🚀 Running the App
 
-### Option A: Web UI (Recommended)
+### Web UI
 ```powershell
 .\.venv\Scripts\python server.py
 ```
-Then open **http://localhost:5000** in your browser.
-
-### Option B: Command Line
-```powershell
-.\.venv\Scripts\python checklist_generator.py your_document.pdf [max_clauses]
-```
+Then open **http://localhost:5000** in your browser. Drag and drop any PDF into the beautiful dashboard to instantly summarize it.
 
 ---
 
 ## 📁 File Structure
-*   `server.py`: The web server (Flask).
-*   `checklist_generator.py`: The core AI engine.
-*   `ui.html`: The modern dashboard.
-*   `setup.ps1`: The auto-installer.
-
----
-
-## ⚠️ Troubleshooting
-*   **"No model found"**: Ensure your model file is inside the `models/` folder and has a `.gguf` extension.
-*   **"Permission Denied"**: Run PowerShell as Administrator if the script fails to create the virtual environment.
-*   **"CUDA/GPU issues"**: The system defaults to high-speed CPU mode for stability. If you have an NVIDIA GPU, ensure your drivers are up to date.
+* `server.py`: The web server (Flask).
+* `checklist_generator.py`: The core LLM engine and PDF extraction logic.
+* `ui.html`: The modern dashboard frontend.
+* `setup.ps1`: The auto-installer.
 
 ---
 
