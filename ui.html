@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Document Summarizer</title>
+<title>Document Summarizer & Reports Pipeline</title>
 <style>
 @font-face {
   font-family: 'IBM Plex Mono';
@@ -77,6 +77,45 @@ header h1 {
   font-size: 0.7rem;
   color: var(--muted);
   letter-spacing: 0.08em;
+}
+
+/* ── Tabs Navigation ── */
+.tabs-nav {
+  display: flex;
+  background: var(--navy2);
+  border-bottom: 1px solid var(--navy3);
+  width: 100%;
+  padding: 0 2rem;
+  gap: 1.5rem;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 1rem 0.5rem 0.8rem;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+.tab-btn:hover {
+  color: var(--white);
+}
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Main Tab Layouts ── */
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
 }
 
 main {
@@ -185,7 +224,7 @@ input[type=number], input[type=text] {
 }
 input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); }
 
-/* ── Generate button ── */
+/* ── Generate buttons ── */
 .btn-generate {
   width: 100%; padding: 0.85rem;
   background: var(--accent); color: var(--navy);
@@ -210,7 +249,7 @@ input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); 
 /* ── Log box ── */
 .log-box {
   background: var(--navy2); border: 1px solid var(--navy3);
-  border-radius: 4px; padding: 1rem; height: 180px;
+  border-radius: 4px; padding: 1rem; height: 200px;
   overflow-y: auto; font-family: 'IBM Plex Mono', monospace;
   font-size: 0.71rem; line-height: 1.7; color: var(--muted);
   margin-bottom: 1.25rem; scroll-behavior: smooth;
@@ -261,6 +300,92 @@ input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); 
 }
 .error-card.visible { display: block; }
 
+/* ── Pipeline UI Extras ── */
+.pipeline-card {
+  background: var(--navy2);
+  border: 1px solid var(--navy3);
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.pipeline-card h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 0.5rem;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.pipeline-card p {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+.divider-text {
+  text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--navy3);
+  letter-spacing: 0.2em;
+  margin: 1.5rem 0;
+  position: relative;
+}
+.divider-text::before, .divider-text::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: var(--navy3);
+}
+.divider-text::before { left: 0; }
+.divider-text::after { right: 0; }
+
+.files-cache-list {
+  background: var(--navy);
+  border: 1px solid var(--navy3);
+  border-radius: 3px;
+  padding: 0.8rem;
+  max-height: 140px;
+  overflow-y: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.73rem;
+  color: var(--light);
+}
+.file-cache-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.file-cache-item:last-child { border-bottom: none; }
+.file-cache-item .icon { color: var(--accent); }
+.file-cache-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--steel);
+  color: var(--light);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-secondary:hover {
+  background: var(--navy3);
+  border-color: var(--accent);
+}
+
+.cache-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
 @media (max-width: 720px) {
   main { grid-template-columns: 1fr; }
   .panel-left { padding-right: 0; border-right: none; border-bottom: 1px solid var(--navy2); padding-bottom: 2rem; margin-bottom: 2rem; }
@@ -276,78 +401,171 @@ input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); 
   <span class="header-tag">DGAQA · OFFLINE LLM · TurboQuant Enabled</span>
 </header>
 
-<main>
-  <!-- LEFT PANEL -->
-  <div class="panel-left">
-    <div class="section-label">Document Input</div>
-    <h2>Generate a <strong>comprehensive summary</strong> from any regulatory document</h2>
-    <p class="subtitle">Upload a government standards or regulatory PDF. The system extracts the main clauses and generates a concise summary of the regulatory requirements.</p>
+<!-- Tabs Navigation -->
+<div class="tabs-nav">
+  <button class="tab-btn active" id="tabBtnSummarizer" onclick="switchTab('summarizer')">Document Summarizer</button>
+  <button class="tab-btn" id="tabBtnPipeline" onclick="switchTab('pipeline')">Quarterly Report Pipeline</button>
+</div>
 
-    <!-- Drop zone -->
-    <div class="dropzone" id="dropzone">
-      <input type="file" id="fileInput" accept=".pdf" />
-      <p>Drop PDF here or <span style="color:var(--accent)">browse</span></p>
-      <p class="file-types">Supported: .PDF — Government / Regulatory Documents</p>
-    </div>
+<!-- TAB 1: SUMMARIZER -->
+<div id="tabSummarizer" class="tab-content active">
+  <main>
+    <!-- LEFT PANEL -->
+    <div class="panel-left">
+      <div class="section-label">Document Input</div>
+      <h2>Generate a <strong>comprehensive summary</strong> from any regulatory document</h2>
+      <p class="subtitle">Upload a government standards or regulatory PDF. The system extracts the main clauses and generates a concise summary of the regulatory requirements.</p>
 
-    <div class="file-selected" id="fileSelected">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-        <path d="M13 2H5L3 4v10h10V2z" stroke="#4caf82" stroke-width="1.2"/>
-        <path d="M5 2v2H3" stroke="#4caf82" stroke-width="1.2"/>
-      </svg>
-      <span class="fname" id="fileName">—</span>
-      <span class="fsize" id="fileSize">—</span>
-      <button class="remove-btn" id="removeFile">✕</button>
-    </div>
-
-    <!-- Options row -->
-    <div class="options-row">
-      <div class="field">
-        <label for="auditorFocus">Focus / Specific instructions (optional)</label>
-        <input type="text" id="auditorFocus" placeholder="e.g. Focus on quality documentation..." />
+      <!-- Drop zone -->
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept=".pdf" />
+        <p>Drop PDF here or <span style="color:var(--accent)">browse</span></p>
+        <p class="file-types">Supported: .PDF — Government / Regulatory Documents</p>
       </div>
-    </div>
 
-    <button class="btn-generate" id="generateBtn" disabled>
-      <div class="spinner"></div>
-      <span class="btn-text">▶ &nbsp; Generate Summary</span>
-    </button>
-  </div>
-
-  <!-- RIGHT PANEL -->
-  <div class="panel-right">
-    <div class="section-label">Processing Log</div>
-
-    <div class="log-box" id="logBox">
-      <div class="log-placeholder" id="logPlaceholder">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="3" width="18" height="18" rx="2" stroke="#1f4e79" stroke-width="1.5"/>
-          <path d="M7 8h10M7 12h6M7 16h8" stroke="#1f4e79" stroke-width="1.5" stroke-linecap="round"/>
+      <div class="file-selected" id="fileSelected">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M13 2H5L3 4v10h10V2z" stroke="#4caf82" stroke-width="1.2"/>
+          <path d="M5 2v2H3" stroke="#4caf82" stroke-width="1.2"/>
         </svg>
-        <span>Awaiting document upload</span>
+        <span class="fname" id="fileName">—</span>
+        <span class="fsize" id="fileSize">—</span>
+        <button class="remove-btn" id="removeFile">✕</button>
+      </div>
+
+      <!-- Options row -->
+      <div class="options-row">
+        <div class="field">
+          <label for="auditorFocus">Focus / Specific instructions (optional)</label>
+          <input type="text" id="auditorFocus" placeholder="e.g. Focus on quality documentation..." />
+        </div>
+      </div>
+
+      <button class="btn-generate" id="generateBtn" disabled>
+        <div class="spinner"></div>
+        <span class="btn-text">▶ &nbsp; Generate Summary</span>
+      </button>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="panel-right">
+      <div class="section-label">Processing Log</div>
+
+      <div class="log-box" id="logBox">
+        <div class="log-placeholder" id="logPlaceholder">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="#1f4e79" stroke-width="1.5"/>
+            <path d="M7 8h10M7 12h6M7 16h8" stroke="#1f4e79" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span>Awaiting document upload</span>
+        </div>
+      </div>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-label">
+          <span id="progressLabel">Processing...</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+
+      <div class="error-card" id="errorCard"></div>
+
+      <!-- Result section -->
+      <div class="result-section" id="resultSection">
+        <div class="result-header">✓ Generation Complete</div>
+        <div id="summaryOutput" style="background: rgba(255,255,255,0.03); border: 1px solid #1f4e79; border-radius: 4px; padding: 1.2rem; font-family: 'IBM Plex Sans', sans-serif; font-size: 0.9rem; line-height: 1.6; color: #f5f8fb; white-space: pre-wrap; margin-bottom: 1.25rem;"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- TAB 2: PIPELINE -->
+<div id="tabPipeline" class="tab-content">
+  <main>
+    <!-- LEFT PANEL -->
+    <div class="panel-left">
+      <div class="section-label">Report Pipeline Sources</div>
+      <h2>Compile <strong>Quarterly Reports</strong> from Monthly files</h2>
+      <p class="subtitle">Aggregate your Monthly Progress Reports (DOCX/PDF) into the official Quarterly template. Run via local Thunderbird mail search or manual drag-and-drop.</p>
+
+      <!-- Thunderbird Fetch Card -->
+      <div class="pipeline-card">
+        <h3>Thunderbird Mail Retrieval</h3>
+        <p>Checks your local Thunderbird offline cache for mails containing monthly report attachments and copies them into the staging area automatically.</p>
+        <div style="display: flex; gap: 0.75rem;">
+          <button class="btn-generate" id="fetchMailsBtn" style="flex: 1;">
+            <div class="spinner" id="fetchSpinner"></div>
+            <span class="btn-text">⚡ Scan Mails</span>
+          </button>
+          <button class="btn-generate" id="autoPipelineBtn" style="flex: 1.5; background: linear-gradient(90deg, #1f4e79, var(--accent)); color: var(--white);">
+            <div class="spinner" id="autoSpinner"></div>
+            <span class="btn-text">🚀 Scan & Compile</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="divider-text">OR</div>
+
+      <!-- Drag and Drop Staging Zone -->
+      <div class="pipeline-card">
+        <h3>Manual Report Upload</h3>
+        <p>Drop your monthly report files (.docx or .pdf) here directly to staging.</p>
+        <div class="dropzone" id="pipelineDropzone">
+          <input type="file" id="pipelineFileInput" accept=".docx,.pdf" multiple />
+          <p>Drop Monthly Files here or <span style="color:var(--accent)">browse</span></p>
+          <p class="file-types">Supports multiple: .DOCX / .PDF</p>
+        </div>
       </div>
     </div>
 
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-label">
-        <span id="progressLabel">Processing...</span>
-        <span id="progressPct">0%</span>
+    <!-- RIGHT PANEL -->
+    <div class="panel-right">
+      <!-- Staged Files list -->
+      <div class="section-label">Staged Monthly Files</div>
+      <div class="pipeline-card" style="padding: 1.2rem; margin-bottom: 1.5rem;">
+        <div class="cache-header">
+          <span id="stagedCount" style="font-size: 0.8rem; color: var(--white); font-weight: 500;">0 files staged</span>
+          <button class="btn-secondary" id="clearCacheBtn">Clear Cache</button>
+        </div>
+        <div class="files-cache-list" id="filesCacheList">
+          <div style="color: var(--navy3); text-align: center; padding: 1rem 0;">No files in staging folder</div>
+        </div>
       </div>
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    </div>
 
-    <div class="error-card" id="errorCard"></div>
+      <div class="section-label">Pipeline Output</div>
+      <button class="btn-generate" id="compileBtn" style="margin-bottom: 1.5rem; background: linear-gradient(90deg, var(--accent), var(--accent2));" disabled>
+        <span class="btn-text">⚙ Compile Quarterly Report (.docx)</span>
+      </button>
 
-    <!-- Result section -->
-    <div class="result-section" id="resultSection">
-      <div class="result-header">✓ Generation Complete</div>
-      <div id="summaryOutput" style="background: rgba(255,255,255,0.03); border: 1px solid #1f4e79; border-radius: 4px; padding: 1.2rem; font-family: 'IBM Plex Sans', sans-serif; font-size: 0.9rem; line-height: 1.6; color: #f5f8fb; white-space: pre-wrap; margin-bottom: 1.25rem;"></div>
+      <div class="section-label">Pipeline Action Logs</div>
+      <div class="log-box" id="pipelineLogBox" style="height: 180px;">
+        <div class="log-placeholder">
+          <span>Awaiting pipeline operations...</span>
+        </div>
+      </div>
+      <div class="error-card" id="pipelineErrorCard"></div>
     </div>
-  </div>
-</main>
+  </main>
+</div>
 
 <script>
-// ── Elements ──
+// ── Switch Tabs ──
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+  
+  if (tabId === 'summarizer') {
+    document.getElementById('tabBtnSummarizer').classList.add('active');
+    document.getElementById('tabSummarizer').classList.add('active');
+  } else {
+    document.getElementById('tabBtnPipeline').classList.add('active');
+    document.getElementById('tabPipeline').classList.add('active');
+    loadStagedFiles();
+  }
+}
+
+// ── TAB 1: SUMMARIZER JS ──
 const dropzone    = document.getElementById('dropzone');
 const fileInput   = document.getElementById('fileInput');
 const fileSelected= document.getElementById('fileSelected');
@@ -366,7 +584,6 @@ const errorCard   = document.getElementById('errorCard');
 
 let selectedFile = null;
 
-// ── File handling ──
 function formatBytes(b) {
   if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
   return (b/1048576).toFixed(1) + ' MB';
@@ -401,7 +618,6 @@ removeFile.addEventListener('click', () => {
   errorCard.classList.remove('visible');
 });
 
-// ── Logging ──
 function addLog(msg, type='info') {
   logPlaceholder.style.display = 'none';
   const ts   = new Date().toTimeString().slice(0,8);
@@ -431,19 +647,15 @@ function showError(msg) {
   resultSection.classList.remove('visible');
 }
 
-// ── Generate ──
 generateBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
-
   clearLog();
   errorCard.classList.remove('visible');
   resultSection.classList.remove('visible');
   progressWrap.classList.remove('visible');
   progressFill.style.width = '0%';
-
   generateBtn.disabled = true;
   generateBtn.classList.add('loading');
-
   addLog(`Uploading: ${selectedFile.name}`, 'info');
 
   const formData = new FormData();
@@ -456,25 +668,20 @@ generateBtn.addEventListener('click', async () => {
   try {
     setProgress(5, 'Uploading document...');
     addLog('Sending to backend...', 'info');
-
     const resp = await fetch('/generate', { method: 'POST', body: formData });
-
     if (!resp.ok) {
       throw new Error(`Server error ${resp.status}: ${await resp.text()}`);
     }
-
     const reader  = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer    = '';
     let finalData = null;
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
-
       for (const line of lines) {
         if (!line.trim()) continue;
         try {
@@ -489,22 +696,235 @@ generateBtn.addEventListener('click', async () => {
         }
       }
     }
-
     if (!finalData) throw new Error('No output received from server.');
-
-    // ── Success ──
     setProgress(100, 'Complete');
     addLog(`✓ Summary generated successfully`, 'ok');
-
     document.getElementById('summaryOutput').textContent = finalData.summary;
     resultSection.classList.add('visible');
-
   } catch(err) {
     addLog('ERROR: ' + err.message, 'err');
     showError(err.message);
   } finally {
     generateBtn.disabled = false;
     generateBtn.classList.remove('loading');
+  }
+});
+
+
+// ── TAB 2: PIPELINE JS ──
+const pipelineDropzone   = document.getElementById('pipelineDropzone');
+const pipelineFileInput  = document.getElementById('pipelineFileInput');
+const fetchMailsBtn      = document.getElementById('fetchMailsBtn');
+const compileBtn         = document.getElementById('compileBtn');
+const clearCacheBtn      = document.getElementById('clearCacheBtn');
+const filesCacheList     = document.getElementById('filesCacheList');
+const stagedCount        = document.getElementById('stagedCount');
+const pipelineLogBox     = document.getElementById('pipelineLogBox');
+const pipelineErrorCard  = document.getElementById('pipelineErrorCard');
+
+function addPipelineLog(msg, type='info') {
+  const placeholder = pipelineLogBox.querySelector('.log-placeholder');
+  if (placeholder) placeholder.style.display = 'none';
+  const ts   = new Date().toTimeString().slice(0,8);
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${ts}</span><span class="log-${type}">${msg}</span>`;
+  pipelineLogBox.appendChild(line);
+  pipelineLogBox.scrollTop = pipelineLogBox.scrollHeight;
+}
+
+function clearPipelineLogs() {
+  pipelineLogBox.innerHTML = '<div class="log-placeholder"><span>Awaiting pipeline operations...</span></div>';
+}
+
+async function loadStagedFiles() {
+  try {
+    const resp = await fetch('/pipeline/list');
+    const data = await resp.json();
+    filesCacheList.innerHTML = '';
+    
+    if (data.files && data.files.length > 0) {
+      stagedCount.textContent = `${data.files.length} file(s) staged`;
+      compileBtn.disabled = false;
+      data.files.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'file-cache-item';
+        item.innerHTML = `<span class="icon">📄</span><span class="name">${file}</span>`;
+        filesCacheList.appendChild(item);
+      });
+    } else {
+      stagedCount.textContent = '0 files staged';
+      compileBtn.disabled = true;
+      filesCacheList.innerHTML = '<div style="color: var(--navy3); text-align: center; padding: 1rem 0;">No files in staging folder</div>';
+    }
+  } catch (err) {
+    addPipelineLog('Error loading staged cache: ' + err.message, 'err');
+  }
+}
+
+// ── Manual upload via drag & drop ──
+pipelineDropzone.addEventListener('dragover', e => { e.preventDefault(); pipelineDropzone.classList.add('drag-over'); });
+pipelineDropzone.addEventListener('dragleave', () => pipelineDropzone.classList.remove('drag-over'));
+pipelineDropzone.addEventListener('drop', async e => {
+  e.preventDefault(); pipelineDropzone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length > 0) {
+    await uploadPipelineFiles(e.dataTransfer.files);
+  }
+});
+pipelineFileInput.addEventListener('change', async e => {
+  if (e.target.files.length > 0) {
+    await uploadPipelineFiles(e.target.files);
+  }
+});
+
+async function uploadPipelineFiles(fileList) {
+  const formData = new FormData();
+  for (let i = 0; i < fileList.length; i++) {
+    formData.append('reports', fileList[i]);
+  }
+  
+  addPipelineLog(`Uploading ${fileList.length} report(s) manually...`, 'info');
+  try {
+    const resp = await fetch('/pipeline/upload', { method: 'POST', body: formData });
+    const data = await resp.json();
+    if (data.status === 'success') {
+      addPipelineLog(`Staged files: ${data.files.join(', ')}`, 'ok');
+      await loadStagedFiles();
+    } else {
+      throw new Error(data.message);
+    }
+  } catch (err) {
+    addPipelineLog('Upload failed: ' + err.message, 'err');
+  }
+}
+
+// ── Thunderbird scan ──
+fetchMailsBtn.addEventListener('click', async () => {
+  fetchMailsBtn.disabled = true;
+  fetchMailsBtn.querySelector('.spinner').style.display = 'block';
+  fetchMailsBtn.querySelector('.btn-text').textContent = 'Scanning cache...';
+  addPipelineLog('Searching local AppData for offline Thunderbird IMAP inbox...', 'info');
+  
+  try {
+    const resp = await fetch('/pipeline/fetch', { method: 'POST' });
+    const data = await resp.json();
+    
+    if (resp.status === 404) {
+      throw new Error('Could not find Thunderbird offline mailbox automatically. Please copy the files manually.');
+    } else if (!resp.ok) {
+      throw new Error(data.message || 'Error occurred during scan.');
+    }
+    
+    addPipelineLog(`Located inbox database: ${data.inbox_path}`, 'info');
+    if (data.extracted_count > 0) {
+      addPipelineLog(`Successfully extracted ${data.extracted_count} monthly reports: ${data.files.join(', ')}`, 'ok');
+    } else {
+      addPipelineLog('No monthly report email attachments (.docx/.pdf) found in offline inbox.', 'warn');
+    }
+    await loadStagedFiles();
+  } catch (err) {
+    addPipelineLog('Thunderbird scan failed: ' + err.message, 'err');
+    pipelineErrorCard.textContent = '⚠ ' + err.message;
+    pipelineErrorCard.classList.add('visible');
+    setTimeout(() => pipelineErrorCard.classList.remove('visible'), 8000);
+  } finally {
+    fetchMailsBtn.disabled = false;
+    fetchMailsBtn.querySelector('.spinner').style.display = 'none';
+    fetchMailsBtn.querySelector('.btn-text').textContent = '⚡ Scan Thunderbird Mails';
+  }
+});
+
+// ── Clear Cache ──
+clearCacheBtn.addEventListener('click', async () => {
+  try {
+    const resp = await fetch('/pipeline/clear', { method: 'POST' });
+    const data = await resp.json();
+    if (data.status === 'success') {
+      addPipelineLog('Staging area cleared.', 'info');
+      await loadStagedFiles();
+    }
+  } catch (err) {
+    addPipelineLog('Failed to clear cache: ' + err.message, 'err');
+  }
+});
+
+// ── Compile quarterly report ──
+compileBtn.addEventListener('click', async () => {
+  compileBtn.disabled = true;
+  addPipelineLog('Extracting monthly milestones via BitNet Local AI engine...', 'info');
+  addPipelineLog('Generating consolidated quarterly report docx. Please wait...', 'info');
+  
+  try {
+    const resp = await fetch('/pipeline/generate', { method: 'POST' });
+    
+    if (!resp.ok) {
+      const data = await resp.json();
+      throw new Error(data.message || 'Failed to compile report.');
+    }
+    
+    // Fetch returned file, download it
+    const blob = await resp.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "Generated_Quaterly_Progress_Report.docx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    
+    addPipelineLog('✓ Consolidation complete! Quarterly Progress Report downloaded.', 'ok');
+  } catch (err) {
+    addPipelineLog('Compilation failed: ' + err.message, 'err');
+    pipelineErrorCard.textContent = '⚠ ' + err.message;
+    pipelineErrorCard.classList.add('visible');
+    setTimeout(() => pipelineErrorCard.classList.remove('visible'), 8000);
+  } finally {
+    compileBtn.disabled = false;
+  }
+});
+
+// ── Auto Pipeline (Scan & Compile) ──
+const autoPipelineBtn = document.getElementById('autoPipelineBtn');
+autoPipelineBtn.addEventListener('click', async () => {
+  autoPipelineBtn.disabled = true;
+  autoPipelineBtn.querySelector('.spinner').style.display = 'block';
+  autoPipelineBtn.querySelector('.btn-text').textContent = 'Running Pipeline...';
+  
+  clearPipelineLogs();
+  addPipelineLog('Starting Auto-Pipeline...', 'info');
+  addPipelineLog('Step 1: Locating & scanning local Thunderbird inbox cache...', 'info');
+  
+  try {
+    const resp = await fetch('/pipeline/run', { method: 'POST' });
+    
+    if (!resp.ok) {
+      const data = await resp.json();
+      throw new Error(data.message || 'Failed to complete pipeline run.');
+    }
+    
+    // Fetch returned file, download it
+    const blob = await resp.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "Generated_Quaterly_Progress_Report.docx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    
+    addPipelineLog('✓ Pipeline execution complete! Compiled report downloaded.', 'ok');
+    await loadStagedFiles();
+  } catch (err) {
+    addPipelineLog('Pipeline failed: ' + err.message, 'err');
+    pipelineErrorCard.textContent = '⚠ ' + err.message;
+    pipelineErrorCard.classList.add('visible');
+    setTimeout(() => pipelineErrorCard.classList.remove('visible'), 8000);
+  } finally {
+    autoPipelineBtn.disabled = false;
+    autoPipelineBtn.querySelector('.spinner').style.display = 'none';
+    autoPipelineBtn.querySelector('.btn-text').textContent = '🚀 Scan & Compile';
   }
 });
 </script>

@@ -4,3 +4,4 @@ llama-cpp-python>=0.3.22
 numpy>=2.0.0
 typing-extensions>=4.10.0
 requests>=2.31.0
+python-docx>=1.1.0

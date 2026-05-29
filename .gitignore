@@ -14,6 +14,9 @@ models/
 Audit_Checklist*.docx
 temp_*.pdf
 scratch/
+incoming_reports/
+Generated_Quaterly_Progress_Report*.docx
+.gemini/
 
 # IDEs
 .vscode/

@@ -1,12 +1,17 @@
-# 🚀 Offline Document Summarizer (RagDoc)
+# 🚀 Offline Document Summarizer & Quarterly Report Pipeline (RagDoc)
 
-A blazing-fast, 100% offline, privacy-first AI tool for generating ultra-concise summaries from massive PDF documents. Powered by **TurboQuant** and natively optimized for `BitNet 1.58b` local models.
+A blazing-fast, 100% offline, privacy-first AI suite for:
+1. **Document Summarization:** Extracting key clauses and requirements from massive regulatory PDFs.
+2. **Quarterly Report Pipeline:** Aggregating monthly progress reports (PDF/DOCX) into the official DGAQA Quarterly Word template automatically using local AI extraction.
+
+Powered by **TurboQuant** and natively optimized for `BitNet 1.58b` local models.
+
+---
 
 ## ⚡ Key Features
-* **Lightning Fast:** Generates full 3-sentence summaries in under 10 seconds.
-* **Smart Hardware Fallback:** Automatically runs with TurboQuant 8-bit KV Cache (8k Context) on GPUs, but falls back to a highly-optimized CPU safe-mode (physical core threading, memory bandwidth limits) for laptops without dedicated graphics.
-* **Llama-3 Native:** Specifically calibrated to prompt `BitNet 1.58b` base models without suffering from instruction hallucination.
-* **100% Offline**: No API keys required. No data ever leaves your machine.
+* **Automated Offline Compilation:** Retrieve monthly reports from local Thunderbird offline caches or via manual drag-and-drop, parse them with a local LLM, and fill out all 10+ matching template tables without formatting loss.
+* **Smart Hardware Fallback:** Runs with TurboQuant 8-bit KV Cache (8k Context) GPU acceleration on NVidia cards (e.g., RTX 3050), or falls back to optimized CPU execution.
+* **Zero Cloud Dependency:** 100% private, offline, and secure. No API keys required.
 
 ---
 
@@ -23,12 +28,11 @@ A blazing-fast, 100% offline, privacy-first AI tool for generating ultra-concise
    ```powershell
    ./setup.ps1
    ```
-   *This will automatically create a virtual environment, install the AI engine optimized for your hardware, and set up all dependencies.*
+   *This will automatically create a virtual environment, install the AI engine, and set up all dependencies.*
 
 3. **Add your Model**:
    * Create a folder named `models` in the root directory.
-   * Place the `ggml-model-i2_s.gguf` (BitNet 1.48b/1.58b) file inside the `models/` folder.
-   * The system will automatically detect and load it.
+   * Place the `ggml-model-i2_s.gguf` file inside the `models/` folder.
 
 ---
 
@@ -38,13 +42,18 @@ A blazing-fast, 100% offline, privacy-first AI tool for generating ultra-concise
 ```powershell
 .\.venv\Scripts\python server.py
 ```
-Then open **http://localhost:5000** in your browser. Drag and drop any PDF into the beautiful dashboard to instantly summarize it.
+Open **http://localhost:5000** in your browser. Use the dual-tab navigation to switch between:
+- **Document Summarizer:** For single PDF summaries.
+- **Quarterly Report Pipeline:** For automated Thunderbird mail retrieval, staging, and quarterly `.docx` report generation.
 
 ---
 
 ## 📁 File Structure
 * `server.py`: The web server (Flask).
 * `document_summarizer.py`: The core LLM engine and PDF extraction logic.
+* `mail_retriever.py`: Local Thunderbird IMAP offline cache scanner.
+* `data_extractor.py`: Local AI-based monthly report parsing and JSON structure repair.
+* `docx_filler.py`: Template mapping and injection engine.
 * `ui.html`: The modern dashboard frontend.
 * `setup.ps1`: The auto-installer.
 
